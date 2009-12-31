@@ -971,8 +971,7 @@ namespace nextgen
                     public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                     {
                         layer_type self = *this;
-std::cout << "base receive" << std::endl;
-std::cout << "type2: " << typeid(self).name() << std::endl;
+
                         if(successful_handler == 0)
                             successful_handler = self->receive_successful_event;
 
@@ -1727,7 +1726,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
-std::cout << "type1: " << typeid(self).name() << std::endl;
+
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
@@ -2031,8 +2030,7 @@ std::cout << "type1: " << typeid(self).name() << std::endl;
                         public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                         {
                             auto self = *this;
-std::cout << "http client receive" << std::endl;
-std::cout << "type3: " << typeid(self).name() << std::endl;
+
                             if(successful_handler == 0)
                                 successful_handler = self->receive_successful_event;
 

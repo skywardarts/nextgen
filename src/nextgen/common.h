@@ -21,7 +21,7 @@
 #include <set>
 #include <list>
 #include <queue>
-#include <algorithm>         // copy, min.
+#include <algorithm>
 #include <cassert>
 #include <deque>
 #include <cstdlib>
@@ -41,9 +41,9 @@
 #include <asio/ssl.hpp>
 
 #include <boost/iostreams/stream.hpp>
-#include <boost/config.hpp>  // BOOST_NO_STDC_NAMESPACE.
+#include <boost/config.hpp>
 #include <boost/iostreams/categories.hpp>
-#include <boost/iostreams/detail/ios.hpp>  // failure.
+#include <boost/iostreams/detail/ios.hpp>
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 #include <boost/range.hpp>
@@ -136,9 +136,11 @@
 
 int readHex(const char* s)
 {
-int i;
-std::istringstream (s) >> std::hex >> i;
-return i;
+    int i;
+
+    std::istringstream (s) >> std::hex >> i;
+
+    return i;
 }
 
 bool NEXTGEN_DEBUG_1 = 1;

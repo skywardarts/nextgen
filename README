@@ -4,3 +4,8 @@ The Next-Gen Engine interface and implementation is in a maluable form. There is
 
 == License
 nextgenengine is released under the MIT license and is copyright (c) 2009 Daemn (daemn.com). A copy of the MIT license can be found in the LICENSE file.
+
+== Build
+Compiler: GCC 4.5
+Platform: Ubuntu 9.10 with Code::Blocks 8.02
+Dependency: Boost 1.40, Asio 1.4.1

@@ -10,7 +10,7 @@ namespace nextgen
     {
         struct basic_country_variables
         {
-           basic_country_variables() : code("null"), id(0)
+            basic_country_variables() : code(null_str), id(null)
             {
 
             }
@@ -26,7 +26,7 @@ namespace nextgen
 
         struct basic_gender_variables
         {
-            basic_gender_variables() : code("null"), id(0)
+            basic_gender_variables() : code(null_str), id(null)
             {
 
             }
@@ -42,7 +42,7 @@ namespace nextgen
 
         struct basic_name_variables
         {
-            basic_name_variables() : first("null"), middle("null"), last("null")
+            basic_name_variables() : first(null_str), middle(null_str), last(null_str)
             {
 
             }
@@ -59,7 +59,7 @@ namespace nextgen
 
         struct basic_email_variables
         {
-            basic_email_variables(nextgen::network::smtp_server server) : server(server), user("null"), host("null")
+            basic_email_variables(nextgen::network::smtp_server server) : server(server), user(null_str), host(null_str)
             {
 
             }
@@ -92,7 +92,7 @@ namespace nextgen
 
         struct basic_person_variables
         {
-            basic_person_variables() : id(0), postal_code("null")
+            basic_person_variables() : id(null), postal_code(null_str)
             {
 
             }
@@ -112,7 +112,7 @@ namespace nextgen
 
         struct basic_user_variables
         {
-            basic_user_variables() : username("null"), password("null"), email(null)
+            basic_user_variables() : username(null_str), password(null_str), email(null)
             {
 
             }
@@ -129,7 +129,7 @@ namespace nextgen
 
         struct basic_account_variables
         {
-            basic_account_variables() : id(0), type(0), user(null), person(null)
+            basic_account_variables() : id(null), type(null), user(null), person(null)
             {
 
             }

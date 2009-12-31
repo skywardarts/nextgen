@@ -9,16 +9,18 @@ namespace nextgen
     {
         class file_asset
         {
-            NEXTGEN_SHARED_CLASS(file_asset, NEXTGEN_SHARED_CLASS_VARS(
+            struct variables
             {
-                variables() : id(0), data("null")
+                variables() : id(0), data(null_str)
                 {
 
                 }
 
                 uint32_t id;
                 std::string data;
-            }));
+            };
+
+            NEXTGEN_ATTACH_SHARED_VARIABLES(file_asset, variables);
         };
 
         class service
@@ -70,15 +72,10 @@ namespace nextgen
 
                 }
 
-                ~variables()
-                {
-
-                }
-
                 hash_map<string, file_asset> asset_list;
             };
 
-            NEXTGEN_SHARED_DATA(service, variables);
+            NEXTGEN_ATTACH_SHARED_VARIABLES(service, variables);
         };
     }
 }

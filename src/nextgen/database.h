@@ -58,7 +58,6 @@ namespace nextgen
                 self->connected = null_str;
             }
 
-
             public: void query(std::string const& query) const
             {
                 auto self = *this;
@@ -112,8 +111,6 @@ namespace nextgen
                         {
                            lengths = mysql_fetch_lengths(result);
 
-                           //NextGen::Framework::Database::Row hash;
-
                            for(i = 0; i < num_fields; i++)
                            {
                                //hash[fields[i]] = row[i];
@@ -138,7 +135,6 @@ namespace nextgen
                             break;
                         }
                     }
-
                     /* more results? -1 = no, >0 = error, 0 = yes (keep looping) */
                     if((status = mysql_next_result(self->link)) > 0)
                         printf("Could not execute statement\n");
@@ -147,7 +143,6 @@ namespace nextgen
 
                 //boost::this_thread::sleep(boost::posix_time::milliseconds(15));
             }
-
 
             public: row_list_type get_row_list(std::string const& query) const
             {
@@ -164,9 +159,9 @@ namespace nextgen
 
                 MYSQL_RES* result;
                 MYSQL_ROW row;
-                //std::cout << "a" << std::endl;
+
                 int status = mysql_query(self->link, query.c_str());
-                //std::cout << "1" << std::endl;
+
                 if(status)
                 {
                     printf("Could not execute statement(s)");
@@ -174,7 +169,7 @@ namespace nextgen
                     mysql_close(self->link);
                     return list;
                 }
-            //std::cout << "2" << std::endl;
+
                 MYSQL_FIELD *field;
                 unsigned int num_fields;
                 unsigned int i;
@@ -185,7 +180,6 @@ namespace nextgen
                 do
                 {
                     result = mysql_store_result(self->link);
-            //std::cout << "3" << std::endl;
                     if(result)
                     {
                         //process_result_set(mysql, result);
@@ -217,7 +211,6 @@ namespace nextgen
                                     //std::cout << fields[i] << ": " << "NULL" << std::endl;
                                }
                            }
-            //std::cout << "4" << std::endl;
                            list->push_back(hash);
                         }
 
@@ -225,7 +218,6 @@ namespace nextgen
                     }
                     else
                     {
-                        //std::cout << "5" << std::endl;
                         if(mysql_field_count(self->link) == 0)
                         {
                             printf("%lld rows affected\n",
@@ -241,7 +233,7 @@ namespace nextgen
 
                     if((status = mysql_next_result(self->link)) > 0)
                         printf("Could not execute statement\n");
-            //std::cout << "6" << std::endl;
+
                 } while (status == 0);
 
                 return list;
@@ -263,9 +255,9 @@ namespace nextgen
 
                 MYSQL_RES* result;
                 MYSQL_ROW row;
-                //std::cout << "a" << std::endl;
+
                 int status = mysql_query(self->link, query.c_str());
-                //std::cout << "1" << std::endl;
+
                 if(status)
                 {
                     printf("Could not execute statement(s)");
@@ -273,7 +265,7 @@ namespace nextgen
                     mysql_close(self->link);
                     return hash;
                 }
-            //std::cout << "2" << std::endl;
+
                 MYSQL_FIELD *field;
                 unsigned int num_fields;
                 unsigned int i;
@@ -284,7 +276,7 @@ namespace nextgen
                 do
                 {
                     result = mysql_store_result(self->link);
-            //std::cout << "3" << std::endl;
+
                     if(result)
                     {
                         //process_result_set(mysql, result);
@@ -314,8 +306,6 @@ namespace nextgen
                                     //std::cout << fields[i] << ": " << "NULL" << std::endl;
                                }
                            }
-            //std::cout << "4" << std::endl;
-
                         }
 
                         mysql_free_result(result);
@@ -338,7 +328,7 @@ namespace nextgen
 
                     if((status = mysql_next_result(self->link)) > 0)
                         printf("Could not execute statement\n");
-            //std::cout << "6" << std::endl;
+
                 } while (status == 0);
 
                 return hash;

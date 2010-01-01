@@ -143,8 +143,8 @@ int readHex(const char* s)
     return i;
 }
 
-bool NEXTGEN_DEBUG_1 = 1;
-bool NEXTGEN_DEBUG_2 = 1;
+bool NEXTGEN_DEBUG_1 = 0;
+bool NEXTGEN_DEBUG_2 = 0;
 bool NEXTGEN_DEBUG_3 = 0;
 bool NEXTGEN_DEBUG_4 = 1;
 bool NEXTGEN_DEBUG_5 = 1;
@@ -282,6 +282,13 @@ namespace nextgen
 
     null_t null;
 
+    void exit(std::string const& message)
+    {
+        std::cout << message << std::endl;
+
+        ::exit(0);
+    }
+
     void getline(std::string& source, std::string& destination)
     {
         size_t pos = source.find("\r\n");
@@ -292,8 +299,72 @@ namespace nextgen
 
             destination = source.substr(0, pos);
 
-            boost::erase_head(source, pos + 2);
+            source.erase(0, pos + 2);
         }
+    }
+
+    int get_current_process_id()
+    {
+        #if PLATFORM == PLATFORM_UNIX
+            #include <unistd.h>
+
+            pid_t id = getpid();
+
+            return (int)id;
+        #endif
+
+        return 0;
+    }
+
+
+    int get_process_total_descriptors(int pid)
+    {
+        int count = 0;
+
+        #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
+            DWORD tcpTableSize = sizeof(MIB_TCPTABLE_OWNER_PID) * 128;
+
+            MIB_TCPTABLE_OWNER_PID* tcpTable = (MIB_TCPTABLE_OWNER_PID*)malloc(tcpTableSize);
+
+            DWORD result = GetExtendedTcpTable(tcpTable, &tcpTableSize, TRUE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+
+            if(result == ERROR_INSUFFICIENT_BUFFER)
+            {
+                free(tcpTable);
+
+                tcpTable = (MIB_TCPTABLE_OWNER_PID*)malloc(tcpTableSize);
+
+                GetExtendedTcpTable(tcpTable, &tcpTableSize, TRUE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+            }
+
+            for(int i = 0, l = (int)tcpTable->dwNumEntries; i < l; ++i)
+            {
+                if(tcpTable->table[i].dwOwningPid == pid)
+                    ++count;
+            }
+        #elif NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_UNIX
+            #include <stdio.h>
+
+            FILE* in;
+            //extern FILE *popen();
+            char buff[512];
+
+            std::string command = "ls -la /proc/" + to_string(pid) + "/fd | wc -l";
+
+            if(!(in = popen(command.c_str(), "r")))
+            {
+                exit("Error with popen()");
+            }
+
+            /* read the output of netstat, one line at a time */
+            fgets(buff, sizeof(buff), in);// != NULL) {}
+
+            pclose(in);
+
+            count = to_int(std::string(buff));
+        #endif
+
+        return count;
     }
 
     std::string to_hex(std::string const& str)
@@ -612,7 +683,7 @@ namespace nextgen
 		{
 			for(typename callback_list_type::const_iterator i = this->list.begin(), l = this->list.end(); i != l; ++i)
 			{
-			    if(NEXTGEN_DEBUG_4)
+			    if(NEXTGEN_DEBUG_2)
                     std::cout << "CALLING CALLBACK" << std::endl;
 
 				(*i)(element_list...);
@@ -769,11 +840,6 @@ namespace nextgen
                 #endif
             }
 
-            ~variables()
-            {
-
-            }
-
             #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
                 LARGE_INTEGER freq, begin;
             #elif NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_UNIX
@@ -807,12 +873,7 @@ namespace nextgen
         return null_str;
     }
 
-    void exit(std::string const& message)
-    {
-        std::cout << message << std::endl;
 
-        exit(0);
-    }
 }
 
 #endif

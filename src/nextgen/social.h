@@ -155,7 +155,7 @@ namespace nextgen
 
         struct basic_service_variables
         {
-            basic_service_variables(database::link main_database) : main_database(main_database)
+            basic_service_variables()
             {
 
             }
@@ -163,7 +163,6 @@ namespace nextgen
             event<std::function<void(void)>> person_list_empty_event;
 
             std::vector<basic_person> person_list;
-            database::link main_database;
         };
 
         class basic_service
@@ -175,7 +174,6 @@ namespace nextgen
                 if(self->person_list.size() == 0)
                 {
                     self->person_list_empty_event();
-
                 }
             }
 

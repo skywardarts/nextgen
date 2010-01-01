@@ -340,8 +340,9 @@ namespace nextgen
                         typedef basic_accepter<> accepter_type;
                         typedef std::function<void(asio::error_code const&)> cancel_handler_type;
                         typedef basic_service<> service_type;
+                        typedef asio::ssl::stream<asio::ip::tcp::socket&> ssl_socket_type;
 
-                        basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service())
+                        basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service()), ssl(false), ssl_context(service.get_service(), asio::ssl::context::sslv23_client), ssl_socket(socket, ssl_context)
                         {
 
                         }
@@ -353,6 +354,9 @@ namespace nextgen
                         socket_type socket;
                         resolver_type resolver;
                         cancel_handler_type cancel_handler;
+                        bool ssl;
+                        asio::ssl::context ssl_context;
+                        ssl_socket_type ssl_socket;
 
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
                     };
@@ -389,6 +393,8 @@ namespace nextgen
                         public: typedef std::function<void(this_type)> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef base_event_type close_event_type;
+
+                        public: typedef asio::ssl::stream<asio::ip::tcp::socket&> ssl_socket_type;
 
                         public: void initialize()
                         {
@@ -514,7 +520,8 @@ namespace nextgen
                                 self->timer.async_wait(self->cancel_handler);
                             }
 
-                            self->resolver.async_resolve(query, [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
+                            self->resolver.async_resolve(query,
+                            [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
                             {
                                 if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::connect handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
@@ -605,8 +612,7 @@ namespace nextgen
                                 self->timer.async_wait(self->cancel_handler);
                             }
 
-                            asio::async_write(self->socket, stream.get_buffer(),
-                            [=](asio::error_code const& error, size_t& total)
+                            auto on_write = [=](asio::error_code const& error, size_t& total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
@@ -629,7 +635,12 @@ namespace nextgen
 
                                     failure_handler();
                                 }
-                            });
+                            };
+
+                            if(self->ssl)
+                                asio::async_write(self->ssl_socket, stream.get_buffer(), on_write);
+                            else
+                                asio::async_write(self->socket, stream.get_buffer(), on_write);
                         }
 
                         public: template<typename stream_type> void receive_until(std::string const& delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
@@ -680,7 +691,10 @@ namespace nextgen
                                 self->timer.async_wait(self->cancel_handler);
                             }
 
-                            asio::async_read_until(self.get_socket(), stream.get_buffer(), delimiter, on_read);
+                            if(self->ssl)
+                                asio::async_read_until(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
+                            else
+                                asio::async_read_until(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
                         public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
@@ -731,7 +745,10 @@ namespace nextgen
                                 self->timer.async_wait(self->cancel_handler);
                             }
 
-                            asio::async_read(self.get_socket(), stream.get_buffer(), delimiter, on_read);
+                            if(self->ssl)
+                                asio::async_read(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
+                            else
+                                asio::async_read(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
                         public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
@@ -755,7 +772,7 @@ namespace nextgen
                             if(self->accepter->port != port)
                                 self->accepter.open(port);
 
-                            self->accepter.accept(client.get_socket(), [=](asio::error_code const& error)
+                            auto on_accept = [=](asio::error_code const& error)
                             {
                                 if(NEXTGEN_DEBUG_1)
                                     std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] Trying to accept client..." << std::endl;
@@ -776,7 +793,9 @@ namespace nextgen
 
                                     failure_handler();
                                 }
-                            });
+                            };
+
+                            self->accepter.accept(client->socket, on_accept);
                         }
 
                         public: socket_type& get_socket() const
@@ -1135,6 +1154,28 @@ namespace nextgen
                             self.send(m1, successful_handler, failure_handler);
                         }
 
+                        public: void send_bye() const
+                        {
+                            auto self = *this;
+
+                            message_type m1;
+                            m1->content = "221 BYE\r\n";
+
+                            std::cout << "S: " << "221 BYE\r\n" << std::endl;
+
+                            self.send(m1,
+                            [=]
+                            {
+                                self.disconnect();
+
+                                //successful_handler(response);
+                            },
+                            [=]
+                            {
+                                //successful_handler(response);
+                            });
+                        }
+
                         // bugfix(daemn) lots of copying to get around lambda stack bug
                         public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
                         {
@@ -1220,6 +1261,8 @@ namespace nextgen
                                             response4.unpack();
 
                                             successful_handler3(response4);
+
+                                            self3.send_bye();
                                         },
                                         failure_handler2);
                                     },
@@ -1227,22 +1270,7 @@ namespace nextgen
                                 }
                                 else if(response3->content.find("QUIT") != std::string::npos)
                                 {
-                                    message_type m1;
-                                    m1->content = "221 BYE\r\n";
-
-                                    std::cout << "S: " << "221 BYE\r\n" << std::endl;
-
-                                    self2.send(m1,
-                                    [=]
-                                    {
-                                        self2.disconnect();
-
-                                        //successful_handler(response);
-                                    },
-                                    [=]
-                                    {
-                                        //successful_handler(response);
-                                    });
+                                    self2.send_bye();
                                 }
                                 else
                                 {
@@ -1485,8 +1513,11 @@ namespace nextgen
                                     }
 
                                     if(self->method == "POST" && !content_length_exists)
+                                    {
+                                        raw_header_list += "Content-Type: application/x-www-form-urlencoded" "\r\n";
                                     // user didn't specify a content length, so we'll count it for them
                                         raw_header_list += "Content-Length: " + to_string(content.length()) + "\r\n";
+                                    }
                                 }
 
                                 if(NEXTGEN_DEBUG_4)
@@ -1506,138 +1537,135 @@ namespace nextgen
                         {
                             auto self = *this;
 std::cout << "http message unpack headers" << std::endl;
-                            if(NEXTGEN_DEBUG_4)
+                            if(NEXTGEN_DEBUG_2)
                                 std::cout << "XXXXXX" << self->stream.get_buffer().in_avail() << std::endl;
 
-                            if(self->stream.get_buffer().in_avail())
+                            std::istream data_stream(&self->stream.get_buffer());
+
+                            std::string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
+
+                            size_t header_end = data.find("\r\n\r\n");
+
+                            if(header_end != std::string::npos)
                             {
-                                std::istream data_stream(&self->stream.get_buffer());
+                                self->raw_header_list += data.substr(0, header_end + 2);
 
-                                std::string line;
-                                std::getline(data_stream, line);
+                                data.erase(0, header_end + 4);
 
-                                if(NEXTGEN_DEBUG_3)
-                                    std::cout << "UNPACKING: " << line << std::endl;
+                                self->content = data;
+                            }
 
-                                std::string data((std::istreambuf_iterator<char>(data_stream)), std::istreambuf_iterator<char>());
 
-                                size_t header_end = data.find("\r\n\r\n");
+                            std::string line;
+                            getline(self->raw_header_list, line);
 
-                                if(header_end != std::string::npos)
+                            if(NEXTGEN_DEBUG_4)
+                                std::cout << "UNPACKING LINE: " << line << std::endl;
+
+                            if(NEXTGEN_DEBUG_2)
+                                std::cout << "AFTER UNPACKING LINE: " << self->raw_header_list << std::endl;
+
+                            boost::regex_error paren(boost::regex_constants::error_paren);
+
+                            try
+                            {
+                                boost::match_results<std::string::const_iterator> what;
+                                boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+                                std::string::const_iterator start = line.begin();
+                                std::string::const_iterator end = line.end();
+
+                                // todo(daemn) fix line bug
+                                if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/([^ ]+) ([0-9]+) (.+?)"), flags))
                                 {
-                                    self->raw_header_list = data.substr(0, header_end + 4);
+                                    if(NEXTGEN_DEBUG_2)
+                                        std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
 
-                                    boost::erase_head(data, header_end + 4);
+                                    self->version = what[1];
+                                    self->status_code = to_int(what[2]);
+                                    self->status_description = what[3];
+                                    boost::to_lower(self->status_description);
                                 }
-
-                                if(NEXTGEN_DEBUG_3)
-                                    std::cout << "GARRRRR" << self->raw_header_list << std::endl;
-
-                                boost::regex_error paren(boost::regex_constants::error_paren);
-
-                                try
+                                else
                                 {
-                                    boost::match_results<std::string::const_iterator> what;
-                                    boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
-
-                                    std::string::const_iterator start = line.begin();
-                                    std::string::const_iterator end = line.end();
-
-                                    // todo(daemn) fix line bug
-                                    if(boost::regex_search(start, end, what, boost::regex("^HTTP\\/(.+?) ([0-9]+) (.+?)\r"), flags))
+                                    if(boost::regex_search(start, end, what, boost::regex("^([^ ]+) ([^ ]+) HTTP\\/([^ ]+)"), flags))
                                     {
                                         if(NEXTGEN_DEBUG_2)
-                                            std::cout << "ZZZZZZZZZZ" << what[1] << what[2] << what[3] << std::endl;
+                                            std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
 
-                                        self->version = what[1];
-                                        self->status_code = to_int(what[2]);
-                                        self->status_description = what[3];
+                                        self->method = what[1];
+                                        self->path = what[2];
+                                        self->version = what[3];
                                     }
                                     else
                                     {
-                                        if(boost::regex_search(start, end, what, boost::regex("^(.+?) (.+?) HTTP\\/(.+?)\r"), flags))
-                                        {
-                                            if(NEXTGEN_DEBUG_2)
-                                                std::cout << "YYYYYYYY " << what[1] << what[2] << what[3] << std::endl;
+                                        if(NEXTGEN_DEBUG_5)
+                                            std::cout << "Error unpacking HTTP header." << std::endl;
+                                    }
+                                }
+                            }
+                            catch(boost::regex_error const& e)
+                            {
+                                std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+                            }
 
-                                            self->method = what[1];
-                                            self->path = what[2];
-                                            self->version = what[3];
+                            self->content = data;
+
+                            self->header_list.clear();
+
+                            try
+                            {
+                                boost::match_results<std::string::const_iterator> what;
+                                boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+                                std::string::const_iterator start = self->raw_header_list.begin();
+                                std::string::const_iterator end = self->raw_header_list.end();
+
+                                self->header_list["set-cookie"] = "";
+
+                                while(boost::regex_search(start, end, what, boost::regex("(.+?)\\: (.+?)\r\n"), flags))
+                                {
+                                    if(what[1].length() > 0)
+                                    {
+                                        std::string key = what[1];
+
+                                        boost::to_lower(key);
+
+                                        if(NEXTGEN_DEBUG_2)
+                                            std::cout << "K: " << key << ": " << what[2] << std::endl;
+
+                                        if(key == "set-cookie")
+                                        {
+                                            self->header_list[key] += what[2] + " ";
                                         }
                                         else
-                                        {
-                                            if(NEXTGEN_DEBUG_5)
-                                                std::cout << "Error unpacking HTTP header." << std::endl;
-                                        }
+                                            self->header_list[key] = what[2];
                                     }
+
+                                    // update search position:
+                                    start = what[0].second;
+
+                                    // update flags:
+                                    flags |= boost::match_prev_avail;
+                                    flags |= boost::match_not_bob;
                                 }
-                                catch(boost::regex_error const& e)
-                                {
-                                    std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-                                }
+                            }
+                            catch(boost::regex_error const& e)
+                            {
+                                std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+                            }
 
-                                self->content = data;
-
-                                self->header_list.clear();
-
-                                try
-                                {
-                                    boost::match_results<std::string::const_iterator> what;
-                                    boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
-
-                                    std::string::const_iterator start = self->raw_header_list.begin();
-                                    std::string::const_iterator end = self->raw_header_list.end();
-
-                                    std::cout << "raw: " << self->raw_header_list << std::endl;
-
-                                    self->header_list["set-cookie"] = "";
-
-                                    while(boost::regex_search(start, end, what, boost::regex("(.+?)\\: (.+?)\r\n"), flags))
-                                    {
-                                        if(what[1].length() > 0)
-                                        {
+                            if(self->status_code != 0)
+                            // we're unpacking response headers
+                            {
 
 
-                                            std::string key = what[1];
+                                // todo(daemn) look for content-length and set-cookie and content-type
+                            }
+                            else
+                            // we're unpacking request headers
+                            {
 
-                                            boost::to_lower(key);
-
-                                            if(NEXTGEN_DEBUG_2)
-                                                std::cout << "K: " << key << ": " << what[2] << std::endl;
-
-                                            if(key == "set-cookie")
-                                            {
-                                                self->header_list[key] += what[2] + " ";
-                                            }
-                                            else
-                                                self->header_list[key] = what[2];
-                                        }
-
-                                        // update search position:
-                                        start = what[0].second;
-
-                                        // update flags:
-                                        flags |= boost::match_prev_avail;
-                                        flags |= boost::match_not_bob;
-                                    }
-                                }
-                                catch(boost::regex_error const& e)
-                                {
-                                    std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-                                }
-
-                                if(self->status_code != 0)
-                                // we're unpacking response headers
-                                {
-
-
-                                    // todo(daemn) look for content-length and set-cookie and content-type
-                                }
-                                else
-                                // we're unpacking request headers
-                                {
-
-                                }
                             }
                         }
 
@@ -1688,6 +1716,11 @@ std::cout << "size: " << self->content.size() << std::endl;
                         typedef MessageType message_type;
                         typedef LayerType layer_type;
                         typedef layer_base_variables<layer_type, transport_layer_type, message_type> base_type;
+
+                        basic_layer_variables() : base_type()
+                        {
+
+                        }
 
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
                     };
@@ -1771,6 +1804,8 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                     if(host_entry == NULL)
                                     {
+                                        self.disconnect();
+
                                         failure_handler();
 
                                         return;
@@ -1828,6 +1863,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                     if(NEXTGEN_DEBUG_4)
                                                         std::cout << "failed2 socks4 response" << std::endl;
 
+                                                    self.disconnect();
+
                                                     failure_handler();
                                                 }
                                             }
@@ -1877,6 +1914,8 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                                 if(host_entry == NULL)
                                                 {
+                                                    self.disconnect();
+
                                                     failure_handler();
 
                                                     return;
@@ -1917,6 +1956,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                                             }
                                             else
                                             {
+                                                self.disconnect();
+
                                                 failure_handler();
                                             }
                                         },
@@ -1930,6 +1971,62 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 }
                             },
                             failure_handler);
+                        }
+
+                        public: void send(message_type request, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        {
+                            auto self = *this;
+
+                            if(request->url.find("https") != std::string::npos
+                            && !self->transport_layer->ssl)
+                            {
+                                message_type m1;
+                                m1->version = "1.1";
+                                m1->method = "CONNECT";
+                                m1->url = self->host + ":443";
+                                m1->header_list = request->header_list;
+
+                                self.send_and_receive(m1,
+                                [=](message_type r1)
+                                {
+                                    if(r1->status_code == 200)
+                                    {
+                                        self->transport_layer->ssl = true;
+
+                                        self->transport_layer->ssl_socket.async_handshake(asio::ssl::stream_base::client,
+                                        [=](asio::error_code const& error)
+                                        {
+                                            if(!error)
+                                            {
+                                                request.pack();
+
+                                                self.send_stream(request->stream, successful_handler, failure_handler);
+                                            }
+                                            else
+                                            {
+                                                if(NEXTGEN_DEBUG_4)
+                                                    std::cout << "<http_socket::send handler> Error: " << error.message() << std::endl;
+
+                                                self.disconnect();
+
+                                                failure_handler();
+                                            }
+                                        });
+                                    }
+                                    else
+                                    {
+                                        self.disconnect();
+
+                                        failure_handler();
+                                    }
+                                }, failure_handler);
+                            }
+                            else
+                            {
+                                request.pack();
+
+                                self.send_stream(request->stream, successful_handler, failure_handler);
+                            }
                         }
 
                         private: void receive_chunked_data(message_type response, size_t length = 1, base_event_type successful_handler = 0, base_event_type failure_handler = 0) const
@@ -1979,6 +2076,8 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         if(pos == std::string::npos)
                                         {
+                                            self.disconnect();
+
                                             failure_handler();
 
                                             return;
@@ -2089,6 +2188,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                     if(NEXTGEN_DEBUG_5)
                                                         std::cout << "failed to receive rest of chunked encoding" << std::endl;
 
+                                                    self.disconnect();
+
                                                     failure_handler();
                                                 });
                                             }
@@ -2106,11 +2207,12 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                                 if(pos == std::string::npos)
                                                 {
+                                                    self.disconnect();
+
                                                     failure_handler();
 
                                                     return;
                                                 }
-
 
                                                 std::cout << "getline_intern " << pos << std::endl;
 
@@ -2142,7 +2244,18 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                     //response->content.erase(response->content.size() - 2, 2); //blank line
 
 
-                                                std::cout << "after: " << to_hex(response->content) << std::endl;
+                                                    std::cout << "after: " << to_hex(response->content) << std::endl;
+
+                                                    if(self->proxy != null_str
+                                                    && response->content.find("Content-Type") != std::string::npos)
+                                                    {
+                                                        // this proxy wrapped the headers in the content
+
+                                                        response->raw_header_list = response->content;
+                                                        response.unpack_headers();
+                                                        response.unpack_content();
+
+                                                    }
 
                                                     successful_handler(response);
                                                 }
@@ -2200,6 +2313,10 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                             successful_handler(response);
                                         }
+                                        else if(response->status_description == "connection established")
+                                        {
+                                            successful_handler(response);
+                                        }
                                         else
                                         {
                                             if(NEXTGEN_DEBUG_5)
@@ -2229,7 +2346,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                         successful_handler(response);
                                     else
                                     {
-                                        self->transport_layer.close();
+                                        self.disconnect();
 
                                         failure_handler();
                                     }
@@ -2455,7 +2572,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                     successful_handler(client);
                 },
-                [=]()
+                [=]
                 {
                     if(NEXTGEN_DEBUG_2)
                         std::cout << "[nextgen::network::server::accept] Failed to accept client." << std::endl;

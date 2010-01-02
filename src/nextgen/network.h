@@ -22,7 +22,12 @@ namespace nextgen
             {
                 variables()
                 {
+                    NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                }
 
+                ~variables()
+                {
+                    NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                 }
 
                 streambuf_type streambuf;
@@ -37,7 +42,12 @@ namespace nextgen
 
             basic_service_variables()
             {
+                NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+            }
 
+            ~basic_service_variables()
+            {
+                NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
             }
 
             service_type service;
@@ -78,7 +88,12 @@ namespace nextgen
 
                     layer_base_variables(host_type const& host = null, port_type port = null) : host(host), port(port)
                     {
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                    }
 
+                    ~layer_base_variables()
+                    {
+                        NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
                     host_type host;
@@ -132,8 +147,14 @@ namespace nextgen
 
                         basic_layer_variables(host_type const& host = null, port_type port = null) : base_type(host, port)
                         {
-
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                         }
+
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                        }
+
                     };
 
                     template<typename VariablesType = basic_layer_variables>
@@ -170,6 +191,146 @@ namespace nextgen
             }
         }
 
+        class address
+        {
+            union v4
+            {
+                int value;
+
+                struct
+                {
+                    uint8_t first;
+                    uint8_t second;
+                    uint8_t third;
+                    uint8_t forth;
+                };
+            };
+
+            public: bool is_valid()
+            {
+                auto self = *this;
+
+                return self->valid;
+            }
+
+            public: struct variables
+            {
+                variables(uint32_t address) : valid(true)
+                {
+                    NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+
+                    this->value.value = address;
+                }
+
+                variables(std::string const& address) : valid(true)
+                {
+                    NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+
+                    this->from_string(address);
+                }
+
+                ~variables()
+                {
+                    NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                }
+
+                void from_string(std::string const& s)
+                {
+                    boost::regex_error paren(boost::regex_constants::error_paren);
+
+                    try
+                    {
+                        boost::match_results<std::string::const_iterator> what;
+                        boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+                        std::string::const_iterator start = s.begin();
+                        std::string::const_iterator end = s.end();
+
+                        if(boost::regex_search(start, end, what, boost::regex("^([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)$"), flags))
+                        {
+                            auto first = boost::lexical_cast<uint32_t>(what[1]);
+                            auto second = boost::lexical_cast<uint32_t>(what[2]);
+                            auto third = boost::lexical_cast<uint32_t>(what[3]);
+                            auto forth = boost::lexical_cast<uint32_t>(what[4]);
+
+                            if(!(first >= 0 && first <= 255
+                            && second >= 0 && second <= 255
+                            && third >= 0 && third <= 255
+                            && forth >= 0 && forth <= 255))
+                            {
+                                this->valid = false;
+
+                                return;
+                            }
+
+                            this->value.first = boost::numeric_cast<uint8_t>(first);
+                            this->value.second = boost::numeric_cast<uint8_t>(second);
+                            this->value.third = boost::numeric_cast<uint8_t>(third);
+                            this->value.forth = boost::numeric_cast<uint8_t>(forth);
+                        }
+                        else
+                        {
+                            this->valid = false;
+
+                            return;
+                        }
+                    }
+                    catch(boost::regex_error const& e)
+                    {
+                        std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+
+                        this->valid = false;
+
+                        return;
+                    }
+                }
+
+                v4 value;
+                bool valid;
+            };
+
+            NEXTGEN_ATTACH_SHARED_VARIABLES(address, variables);
+        };
+
+        class address_range
+        {
+            public: bool is_within_range(address a)
+            {
+                auto self = *this;
+
+                if(a->value.first <= self->upper->value.first && a->value.first >= self->lower->value.first
+                && a->value.second <= self->upper->value.second && a->value.second >= self->lower->value.second
+                && a->value.third <= self->upper->value.third && a->value.third >= self->lower->value.third
+                && a->value.forth <= self->upper->value.forth && a->value.forth >= self->lower->value.forth)
+                    return true;
+
+                return false;
+            }
+
+            public: struct variables
+            {
+                variables(address&& lower, address&& upper) : lower(lower), upper(upper)
+                {
+                    NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                }
+
+                variables(std::string const& lower, std::string const& upper) : lower(lower), upper(upper)
+                {
+                    NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                }
+
+                ~variables()
+                {
+                    NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                }
+
+                address lower;
+                address upper;
+            };
+
+            NEXTGEN_ATTACH_SHARED_VARIABLES(address_range, variables);
+        };
+
         typedef ip::network::ipv4::basic_layer<> ipv4_address;
         typedef ip::network::ipv6::basic_layer<> ipv6_address;
 
@@ -202,7 +363,12 @@ namespace nextgen
 
                     layer_base_variables(service_type service) : service(service), timer(service.get_service()), timeout(180)
                     {
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                    }
 
+                    ~layer_base_variables()
+                    {
+                        NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
                     event<send_successful_event_type> send_successful_event;
@@ -232,9 +398,14 @@ namespace nextgen
                 {
                     typedef uint32_t port_type;
 
-                    accepter_base_variables() : port(null)
+                    accepter_base_variables(port_type port = null) : port(port)
                     {
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                    }
 
+                    ~accepter_base_variables()
+                    {
+                        NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
                     port_type port;
@@ -258,7 +429,12 @@ namespace nextgen
 
                         basic_accepter_variables(service_type service) : base_type(), accepter_(service.get_service())
                         {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
 
+                        ~basic_accepter_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                         }
 
                         accepter_type accepter_;
@@ -344,7 +520,12 @@ namespace nextgen
 
                         basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service()), ssl(false), ssl_context(service.get_service(), asio::ssl::context::sslv23_client), ssl_socket(socket, ssl_context)
                         {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
 
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                         }
 
                         event<accept_successful_event_type> accept_successful_event;
@@ -358,7 +539,6 @@ namespace nextgen
                         asio::ssl::context ssl_context;
                         ssl_socket_type ssl_socket;
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
                     };
 
                     template<typename NetworkLayerType>
@@ -396,50 +576,59 @@ namespace nextgen
 
                         public: typedef asio::ssl::stream<asio::ip::tcp::socket&> ssl_socket_type;
 
-                        public: void initialize()
+                        public: void initialize() const
                         {
                             auto self = *this;
 
-                            self->cancel_handler = [=](asio::error_code const& error)
+                            auto& socket = self->socket;
+
+                            self->cancel_handler = [=, &socket](asio::error_code const& error)
                             {
                                 if(error == asio::error::operation_aborted)
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled" << std::endl;
                                 }
                                 else
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer called back. Closing socket (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                        std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer called back. Closing socket" << std::endl;
 
                                     // bugfix(daemn): read timer doesn't actually cancel
-                                    self.cancel();
+
+                                    if(NEXTGEN_DEBUG_1)
+                                        std::cout << "<socket::cancel> Cancelling socket" << std::endl;
+
+                                    if(socket.native() != asio::detail::invalid_socket)
+                                        socket.cancel();
+                                    //else
+                                    //    std::cout << "<ClientSocket> Guarded an invalid socket." << std::endl;
                                 }
                             };
                         }
 
-                        public: host_type const& get_host()
+                        public: host_type const& get_host() const
                         {
                             auto self = *this;
 
                             return self->network_layer.get_host();
                         }
 
-                        public: void set_host(host_type const& host)
+                        public: void set_host(host_type const& host) const
                         {
                             auto self = *this;
 
                             self->network_layer.set_host(host);
                         }
 
-                        public: port_type get_port()
+                        public: port_type get_port() const
                         {
                             auto self = *this;
 
                             return self->network_layer.get_port();
                         }
 
-                        public: void set_port(port_type port)
+                        public: void set_port(port_type port) const
                         {
                             auto self = *this;
 
@@ -503,18 +692,18 @@ namespace nextgen
                             if(failure_handler == 0)
                                 failure_handler = self->connect_failure_event;
 
-                            self->network_layer.set_host(host_);
-                            self->network_layer.set_port(port_);
+                            self.set_host(host_);
+                            self.set_port(port_);
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::connect> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                std::cout << "<socket::connect> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                             resolver_type::query query(host_, port_ == 80 ? "http" : to_string(port_));
 
                             if(self->timeout > 0)
                             {
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::connect> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::connect> create timer (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                 self->timer.expires_from_now(boost::posix_time::seconds(30));
                                 self->timer.async_wait(self->cancel_handler);
@@ -524,7 +713,7 @@ namespace nextgen
                             [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
                             {
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::connect handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::connect handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                 if(self->timeout > 0)
                                     self.cancel_timer();
@@ -532,7 +721,7 @@ namespace nextgen
                                 if(!error)
                                 {
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "<socket::connect handler> resolve success (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                        std::cout << "<socket::connect handler> resolve success (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                     //todo(daemn) add additional endpoint connection tries
                                     asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
@@ -540,7 +729,7 @@ namespace nextgen
                                     //++endpoint_iterator;
 
                                     if(NEXTGEN_DEBUG_1)
-                                        std::cout << "<socket::connect handler> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                        std::cout << "<socket::connect handler> create timer (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                     if(self->timeout > 0)
                                     {
@@ -551,7 +740,7 @@ namespace nextgen
                                     self->socket.async_connect(endpoint, [=](asio::error_code const& error)
                                     {
                                         if(NEXTGEN_DEBUG_1)
-                                            std::cout << "<socket::connect handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                            std::cout << "<socket::connect handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                         if(self->timeout > 0)
                                             self.cancel_timer();
@@ -604,7 +793,7 @@ namespace nextgen
                                 failure_handler = self->send_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::write> create timer (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                std::cout << "<socket::write> create timer (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                             if(self->timeout > 0)
                             {
@@ -620,7 +809,7 @@ namespace nextgen
                                     self.cancel_timer();
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::write handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::write handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                 if(!error)
                                 {
@@ -658,14 +847,14 @@ namespace nextgen
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::receive> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                std::cout << "<socket::receive> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::receive handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::receive handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                 if(self->timeout > 0)
                                     self.cancel_timer();
@@ -712,14 +901,14 @@ namespace nextgen
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
-                                std::cout << "<socket::receive> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                std::cout << "<socket::receive> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                             auto on_read = [=](asio::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
                                 if(NEXTGEN_DEBUG_1)
-                                    std::cout << "<socket::receive handler> (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
+                                    std::cout << "<socket::receive handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                 if(self->timeout > 0)
                                     self.cancel_timer();
@@ -840,7 +1029,12 @@ namespace nextgen
 
                     message_base_variables() : state(0)
                     {
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                    }
 
+                    ~message_base_variables()
+                    {
+                        NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
                     std::string content;
@@ -895,14 +1089,19 @@ namespace nextgen
                     typedef std::function<void(message_type)> receive_successful_event_type;
                     typedef std::function<void(layer_type)> accept_successful_event_type;
 
-                    layer_base_variables(service_type service) : transport_layer(service), keep_alive_threshold(0), proxy(null_str), host(null_str), port(null)
+                    layer_base_variables(service_type service) : transport_layer(service), keep_alive_threshold(0), host(null_str), port(null)
                     {
-
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                     }
 
-                    layer_base_variables(transport_layer_type transport_layer) : transport_layer(transport_layer), keep_alive_threshold(0), proxy(null_str), host(null_str), port(null)
+                    layer_base_variables(transport_layer_type transport_layer) : transport_layer(transport_layer), keep_alive_threshold(0), host(null_str), port(null)
                     {
+                        NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                    }
 
+                    ~layer_base_variables()
+                    {
+                        NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
                     event<std::function<void()>> send_successful_event;
@@ -918,10 +1117,10 @@ namespace nextgen
                     timer keep_alive_timer;
                     transport_layer_type transport_layer;
                     uint32_t keep_alive_threshold;
-                    std::string proxy;
                     ipv4_address proxy_address;
                     std::string host;
                     uint32_t port;
+                    uint32_t id;
                 };
 
                 template<typename LayerType, typename TransportLayerType, typename MessageType, typename VariablesType = layer_base_variables<LayerType, TransportLayerType, MessageType>>
@@ -1089,10 +1288,6 @@ namespace nextgen
                     {
                         typedef message_base_variables base_type;
 
-                        basic_message_variables() : base_type()
-                        {
-
-                        }
                     };
 
                     template<typename VariablesType = basic_message_variables>
@@ -1118,7 +1313,22 @@ namespace nextgen
                         typedef LayerType layer_type;
                         typedef layer_base_variables<layer_type, transport_layer_type, message_type> base_type;
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                        typedef typename base_type::service_type service_type;
+
+                        basic_layer_variables(service_type service) : base_type(service)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        basic_layer_variables(transport_layer_type transport_layer) : base_type(transport_layer)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                        }
                     };
 
                     template<typename TransportLayerType>
@@ -1290,11 +1500,17 @@ namespace nextgen
 
                 namespace http
                 {
+
                     struct basic_agent_variables
                     {
                         basic_agent_variables(std::string const& title = null) : title(title)
                         {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
 
+                        ~basic_agent_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                         }
 
                         std::string title;
@@ -1303,6 +1519,71 @@ namespace nextgen
                     class basic_agent
                     {
                         NEXTGEN_ATTACH_SHARED_VARIABLES(basic_agent, basic_agent_variables);
+                    };
+
+                    class basic_proxy
+                    {
+                        public: typedef basic_proxy this_type;
+                        public: typedef std::string host_type;
+                        public: typedef uint32_t port_type;
+                        public: typedef uint32_t id_type;
+                        public: typedef uint32_t type_type;
+                        public: typedef float latency_type;
+                        public: typedef timer timer_type;
+
+                        public: struct types
+                        {
+                            static const uint32_t none = 0;
+                            static const uint32_t transparent = 1;
+                            static const uint32_t distorting = 2;
+                            static const uint32_t anonymous = 3;
+                            static const uint32_t elite = 4;
+                            static const uint32_t socks4 = 5;
+                            static const uint32_t socks5 = 6;
+                            static const uint32_t socks4n5 = 7;
+                        };
+
+                        public: struct states
+                        {
+                            static const uint32_t none = 0;
+                            static const uint32_t can_only_send = 1;
+                            static const uint32_t cannot_send_back = 2;
+                            static const uint32_t bad_return_headers = 3;
+                            static const uint32_t bad_return_data = 4;
+                            static const uint32_t cannot_send = 5;
+                            static const uint32_t cannot_connect = 6;
+                            static const uint32_t codeen = 7;
+                            static const uint32_t perfect = 8;
+                            static const uint32_t banned = 9;
+                            static const uint32_t invalid = 10;
+                            static const uint32_t chunked = 11;
+                            //user_agent_via, cache_control, cache_info, connection_close, connection_keep_alive,
+                        };
+
+                        private: struct variables
+                        {
+                            variables(host_type const& host = null, port_type port = null, id_type id = null, type_type type = null, latency_type latency = null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
+                            {
+                                NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                            }
+
+                            ~variables()
+                            {
+                                NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                            }
+
+                            int32_t rating;
+                            host_type host;
+                            port_type port;
+                            id_type id;
+                            uint32_t type;
+                            latency_type latency;
+                            timer_type timer;
+                            uint32_t state;
+                            uint32_t check_delay;
+                        };
+
+                        NEXTGEN_ATTACH_SHARED_VARIABLES(basic_proxy, variables);
                     };
 
                     struct basic_message_variables : public message_base_variables
@@ -1327,7 +1608,12 @@ namespace nextgen
 
                         basic_message_variables() : base_type(), status_code(0), version("1.1")
                         {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
 
+                        ~basic_message_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                         }
 
                         referer_type referer;
@@ -1347,6 +1633,7 @@ namespace nextgen
                         std::string username;
                         std::string password;
                         std::string scheme;
+
                     };
 
                     template<typename VariablesType = basic_message_variables>
@@ -1481,7 +1768,7 @@ namespace nextgen
                                         raw_header_list += (*i).first + ": " + (*i).second  + "\r\n";
 
                                         // we're at the user agent header, so let's tell them what encoding our agent accepts
-                                        raw_header_list += "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" "\r\n";
+                                        raw_header_list += "Accept: */*" "\r\n"; //text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
                                         raw_header_list += "Accept-Language: en-us,en;q=0.5" "\r\n";
                                         raw_header_list += "Accept-Encoding: gzip,deflate" "\r\n";
                                         raw_header_list += "Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7" "\r\n";
@@ -1717,12 +2004,25 @@ std::cout << "size: " << self->content.size() << std::endl;
                         typedef LayerType layer_type;
                         typedef layer_base_variables<layer_type, transport_layer_type, message_type> base_type;
 
-                        basic_layer_variables() : base_type()
-                        {
+                        typedef typename base_type::service_type service_type;
+                        typedef basic_proxy proxy_type;
 
+                        basic_layer_variables(service_type service) : base_type(service), proxy(null)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                         }
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                        basic_layer_variables(transport_layer_type transport_layer) : base_type(transport_layer), proxy(null)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                        }
+
+                        proxy_type proxy;
                     };
 
                     template<typename TransportLayerType>
@@ -1744,6 +2044,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename base_type::host_type host_type;
                         public: typedef typename base_type::port_type port_type;
                         public: typedef typename base_type::keep_alive_threshold_type keep_alive_threshold_type;
+                        public: typedef typename variables_type::proxy_type proxy_type;
+
 
                         public: void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
@@ -1753,10 +2055,10 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 std::cout << "[nextgen::network::http_client] reconnecting" << std::endl;
 
                             self.disconnect();
-                            self.connect(self->host, self->port, self->proxy_address, successful_handler2, failure_handler2);
+                            self.connect(self->host, self->port, successful_handler2, failure_handler2);
                         }
 
-                        public: void connect(host_type const& host_, port_type port_, ipv4_address proxy = 0, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
                         {
                             auto self = *this;
 
@@ -1775,12 +2077,12 @@ std::cout << "size: " << self->content.size() << std::endl;
                             std::string host;
                             uint32_t port;
 
-                            if(proxy != 0)
+                            if(self->proxy != 0)
                             {
-                                host = proxy.get_host();
-                                port = proxy.get_port();
+                                host = self->proxy->host;
+                                port = self->proxy->port;
 
-                                self->proxy_address = proxy;
+                                //self->proxy_address = self->proxy;
                             }
                             else
                             {
@@ -1796,9 +2098,12 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 if(NEXTGEN_DEBUG_4)
                                     std::cout << "[nextgen::network::http_client] Connected" << std::endl;
 
-                                std::cout << "proxy type: " << self->proxy << std::endl;
 
-                                if(self->proxy == "socks4")
+                                //if(self->proxy ==proxy_type::types::transparent
+                                //|| self->proxy ==proxy_type::types::distorting
+                                //|| self->proxy ==proxy_type::types::anonymous)
+                                if(self->proxy->type == proxy_type::types::socks4
+                                || self->proxy->type == proxy_type::types::socks4n5)
                                 {
                                     hostent* host_entry = gethostbyname(self->host.c_str());
 
@@ -1873,7 +2178,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                     },
                                     failure_handler);
                                 }
-                                else if(self->proxy == "socks5")
+                                else if(self->proxy->type == proxy_type::types::socks5)
                                 {
                                     byte_array r1;
 
@@ -2089,7 +2394,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         response->content.erase(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]) + 2);
 
-                                        length = readHex(data.c_str());
+                                        length = read_hex(data.c_str());
 
                                         std::cout << "chunked length hex: " << data.c_str() << std::endl;
                                         std::cout << "chunked length: " << length << std::endl;
@@ -2220,7 +2525,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                                 response->content.erase(to_int(response->header_list["content-length"]), pos - to_int(response->header_list["content-length"]) + 2);
 
-                                                length = readHex(data.c_str());
+                                                length = read_hex(data.c_str());
 
                                                 std::cout << "chunked length hex: " << data.c_str() << std::endl;
                                                 std::cout << "chunked length: " << length << std::endl;
@@ -2361,14 +2666,10 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                 namespace xml
                 {
-                    class basic_message_variables : public message_base_variables
+                    struct basic_message_variables : public message_base_variables
                     {
                         typedef message_base_variables base_type;
 
-                        public: basic_message_variables() : base_type()
-                        {
-
-                        }
                     };
 
                     template<typename VariablesType = basic_message_variables>
@@ -2388,7 +2689,22 @@ std::cout << "size: " << self->content.size() << std::endl;
                         typedef LayerType layer_type;
                         typedef layer_base_variables<layer_type, transport_layer_type, message_type> base_type;
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                        typedef typename base_type::service_type service_type;
+
+                        basic_layer_variables(service_type service) : base_type(service)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        basic_layer_variables(transport_layer_type transport_layer) : base_type(transport_layer)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                        }
                     };
 
                     template<typename TransportLayerType>
@@ -2410,10 +2726,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                     {
                         typedef message_base_variables base_type;
 
-                        basic_message_variables() : base_type()
-                        {
-
-                        }
 
                         uint32_t id;
                         uint32_t length;
@@ -2462,7 +2774,22 @@ std::cout << "size: " << self->content.size() << std::endl;
                         typedef LayerType layer_type;
                         typedef layer_base_variables<layer_type, transport_layer_type, message_type> base_type;
 
-                        NEXTGEN_ATTACH_SHARED_BASE(basic_layer_variables, base_type);
+                        typedef typename base_type::service_type service_type;
+
+                        basic_layer_variables(service_type service) : base_type(service)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        basic_layer_variables(transport_layer_type transport_layer) : base_type(transport_layer)
+                        {
+                            NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+                        }
+
+                        ~basic_layer_variables()
+                        {
+                            NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+                        }
                     };
 
                     template<typename TransportLayerType>
@@ -2499,6 +2826,7 @@ std::cout << "size: " << self->content.size() << std::endl;
         typedef ip::application::http::basic_message<> http_message;
         typedef ip::application::http::basic_layer<tcp_socket> http_client;
         typedef ip::application::http::basic_agent http_agent;
+        typedef ip::application::http::basic_proxy http_proxy;
 
         typedef ip::application::xml::basic_message<> xml_message;
         typedef ip::application::xml::basic_layer<tcp_socket> xml_client;
@@ -2694,16 +3022,16 @@ std::cout << "size: " << self->content.size() << std::endl;
     {
         if(milliseconds > 0)
         {
+            if(NEXTGEN_DEBUG_2)
+                std::cout << "timeout for " << milliseconds << std::endl;
+
             boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(service.get_service()));
-std::cout << "timeout for " << milliseconds << std::endl;
+
             timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
 
             timer->async_wait([=](asio::error_code const& error)
             {
                 timer->expires_from_now(); // bugfix(daemn) it's going to go out of scope and cancel the timer automatically
-
-                if(NEXTGEN_DEBUG_4)
-                    std::cout << "timer zzz" << std::endl;
 
                 callback();
             });

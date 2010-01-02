@@ -26,6 +26,8 @@
 #include <deque>
 #include <cstdlib>
 #include <cstring>
+#include <cxxabi.h>
+
 
 //#include <time.h>
 //#include <math.h>
@@ -77,6 +79,7 @@
 #include "content_gzip.h"
 #include "mysql/mysql.h"
 
+#define NEXTGEN_DEBUG 1
 
 #define NEXTGEN_PLATFORM_DOS 0
 #define NEXTGEN_PLATFORM_WINDOWS 1
@@ -109,14 +112,13 @@
     #include <Wincrypt.h>
 #endif
 
-
 #define NEXTGEN_ATTACH_SHARED_VARIABLES(this_type_arg, data_type_arg, ...) \
     public: typedef data_type_arg ng_data_type; \
     public: typedef this_type_arg ng_this_type; \
     protected: boost::shared_ptr<data_type_arg> ng_data; \
     public: this_type_arg(this_type_arg& t) : ng_data(t.ng_data) { } \
     public: this_type_arg(this_type_arg const& t) : ng_data(t.ng_data) { } \
-    public: this_type_arg(nextgen::null_t& t) { __VA_ARGS__ } \
+    public: this_type_arg(nextgen::null_t& t) : ng_data() { __VA_ARGS__ } \
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : ng_data(new data_type_arg(argument_list...)) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
     public: bool operator==(this_type_arg const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
@@ -134,119 +136,11 @@
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : base_type_arg(argument_list...) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : base_type_arg(*((base_type_arg*)(&t))) { }
 
-int readHex(const char* s)
-{
-    int i;
-
-    std::istringstream (s) >> std::hex >> i;
-
-    return i;
-}
-
 bool NEXTGEN_DEBUG_1 = 0;
 bool NEXTGEN_DEBUG_2 = 0;
 bool NEXTGEN_DEBUG_3 = 0;
 bool NEXTGEN_DEBUG_4 = 1;
 bool NEXTGEN_DEBUG_5 = 1;
-
-
-std::string url_encode(std::string const& str)
-{
-    std::string str2;
-
-	for(size_t i = 0, l = str.size(); i < l; ++i)
-	{
-		switch(str[i])
-		{
-            case '%': str2 += "%25"; break;
-            case ' ': str2 += "%20"; break;
-            case '^': str2 += "%5E"; break;
-            case '&': str2 += "%26"; break;
-            case '`': str2 += "%60"; break;
-            case '{': str2 += "%7B"; break;
-            case '}': str2 += "%7D"; break;
-            case '|': str2 += "%7C"; break;
-            case ']': str2 += "%5D"; break;
-            case '[': str2 += "%5B"; break;
-            case '"': str2 += "%22"; break;
-            case '<': str2 += "%3C"; break;
-            case '>': str2 += "%3E"; break;
-            case '\\': str2 += "%5C"; break;
-            case '#': str2 += "%23"; break;
-            case '?': str2 += "%3F"; break;
-            case '/': str2 += "%2F"; break;
-            case ':': str2 += "%3A"; break;
-            case '@': str2 += "%40"; break;
-            case '=': str2 += "%3D"; break;
-            default: str2 += str[i]; break;
-        }
-	}
-
-	return str2;
-}
-
-void find_and_replace(std::string& source, std::string const& find, std::string const& replace)
-{
-	for(std::string::size_type i = 0; (i = source.find(find, i)) != std::string::npos;)
-	{
-		source.replace(i, find.length(), replace);
-
-		i += replace.length() - find.length() + 1;
-	}
-}
-
-template<typename element_type>
-std::string to_string(element_type element)
-{
-	return boost::lexical_cast<std::string>(element);
-}
-
-template<typename element_type>
-int to_int(element_type element)
-{
-	return boost::lexical_cast<int32_t>(element);
-}
-
-template<>
-int to_int(std::string element)
-{
-    boost::regex_error paren(boost::regex_constants::error_paren);
-
-    try
-    {
-        boost::match_results<std::string::const_iterator> what;
-        boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
-
-        std::string::const_iterator start = element.begin();
-        std::string::const_iterator end = element.end();
-
-        if(boost::regex_search(start, end, what, boost::regex("([\\-0-9]+)"), flags))
-        {
-            if(NEXTGEN_DEBUG_3)
-                std::cout << "converting to int: " << what[1] << std::endl;
-
-            return boost::lexical_cast<int>(what[1]);
-        }
-        else
-        {
-            std::cout << "Couldn't convert to int" << std::endl;
-        }
-    }
-    catch(boost::regex_error const& e)
-    {
-        std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
-    }
-
-    return 0;
-}
-
-std::string reverse_string(std::string const& s)
-{
-	std::string temp(s);
-	std::reverse(temp.begin(), temp.end());
-
-	return temp;
-}
 
 namespace nextgen
 {
@@ -282,11 +176,163 @@ namespace nextgen
 
     null_t null;
 
+    // used for constructor/deconstructor debugging
+    typedef boost::unordered_map<std::string, uint32_t> object_registry_type;
+    static object_registry_type object_registry;
+
+    template<typename ElementType>
+    void debug_object_registry(ElementType& e, bool increase)
+    {
+        int status;
+        char* unmangled_name;
+        const std::type_info& ti = typeid(e);
+
+        unmangled_name = abi::__cxa_demangle(ti.name(), 0, 0, &status);
+
+        if(increase)
+            ++object_registry[unmangled_name];
+        else
+            --object_registry[unmangled_name];
+
+        free(unmangled_name);
+    }
+
+    #define NEXTGEN_DEBUG_CONSTRUCTOR(element_type) \
+    if(NEXTGEN_DEBUG) \
+        debug_object_registry(element_type, true);
+
+    #define NEXTGEN_DEBUG_DECONSTRUCTOR(element_type) \
+    if(NEXTGEN_DEBUG) \
+        debug_object_registry(element_type, false);
+
+
     void exit(std::string const& message)
     {
         std::cout << message << std::endl;
 
         ::exit(0);
+    }
+
+    std::string url_encode(std::string const& str)
+    {
+        std::string str2;
+
+        for(size_t i = 0, l = str.size(); i < l; ++i)
+        {
+            switch(str[i])
+            {
+                case '%': str2 += "%25"; break;
+                case ' ': str2 += "%20"; break;
+                case '^': str2 += "%5E"; break;
+                case '&': str2 += "%26"; break;
+                case '`': str2 += "%60"; break;
+                case '{': str2 += "%7B"; break;
+                case '}': str2 += "%7D"; break;
+                case '|': str2 += "%7C"; break;
+                case ']': str2 += "%5D"; break;
+                case '[': str2 += "%5B"; break;
+                case '"': str2 += "%22"; break;
+                case '<': str2 += "%3C"; break;
+                case '>': str2 += "%3E"; break;
+                case '\\': str2 += "%5C"; break;
+                case '#': str2 += "%23"; break;
+                case '?': str2 += "%3F"; break;
+                case '/': str2 += "%2F"; break;
+                case ':': str2 += "%3A"; break;
+                case '@': str2 += "%40"; break;
+                case '=': str2 += "%3D"; break;
+                default: str2 += str[i]; break;
+            }
+        }
+
+        return str2;
+    }
+
+    void find_and_replace(std::string& source, std::string const& find, std::string const& replace)
+    {
+        for(std::string::size_type i = 0; (i = source.find(find, i)) != std::string::npos;)
+        {
+            source.replace(i, find.length(), replace);
+
+            i += replace.length() - find.length() + 1;
+        }
+    }
+
+    int read_hex(const char* s)
+    {
+        int i;
+
+        std::istringstream (s) >> std::hex >> i;
+
+        return i;
+    }
+
+    template<typename element_type>
+    std::string to_string(element_type element)
+    {
+        return boost::lexical_cast<std::string>(element);
+    }
+
+    template<typename element_type>
+    int to_int(element_type element)
+    {
+        return boost::lexical_cast<int32_t>(element);
+    }
+
+    template<>
+    int to_int(std::string element)
+    {
+        boost::regex_error paren(boost::regex_constants::error_paren);
+
+        try
+        {
+            boost::match_results<std::string::const_iterator> what;
+            boost::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+            std::string::const_iterator start = element.begin();
+            std::string::const_iterator end = element.end();
+
+            if(boost::regex_search(start, end, what, boost::regex("([\\-0-9]+)"), flags))
+            {
+                if(NEXTGEN_DEBUG_3)
+                    std::cout << "converting to int: " << what[1] << std::endl;
+
+                return boost::lexical_cast<int32_t>(what[1]);
+            }
+            else
+            {
+                std::cout << "Couldn't convert to int" << std::endl;
+            }
+        }
+        catch(boost::regex_error const& e)
+        {
+            std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+        }
+
+        return 0;
+    }
+
+
+    template<typename element_type>
+    int to_uint(element_type element)
+    {
+        std::cout << "1 " << element << std::endl;
+        return boost::lexical_cast<uint32_t>(element);
+    }
+
+    template<typename element_type>
+    int to_byte(element_type element)
+    {
+        std::cout << "2 " << element << std::endl;
+        return boost::lexical_cast<uint8_t>(element);
+    }
+
+    std::string reverse_string(std::string const& s)
+    {
+        std::string temp(s);
+        std::reverse(temp.begin(), temp.end());
+
+        return temp;
     }
 
     void getline(std::string& source, std::string& destination)
@@ -551,15 +597,22 @@ namespace nextgen
         {
             variables() : little_endian(false)
             {
-
+                 NEXTGEN_DEBUG_CONSTRUCTOR(*this);
             }
 
             variables(byte_array& ba, size_t length) : little_endian(false)
             {
+                NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+
                 // todo(daemn) fix this
                 std::ostream ostream(&this->data);
 
                 ostream << &ba->data;
+            }
+
+            ~variables()
+            {
+                 NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
             }
 
             bool little_endian;
@@ -681,7 +734,9 @@ namespace nextgen
 
 		public: template<typename ...element_type_list> void call(element_type_list&& ...element_list)
 		{
-			for(typename callback_list_type::const_iterator i = this->list.begin(), l = this->list.end(); i != l; ++i)
+		    auto self = *this;
+
+			for(typename callback_list_type::const_iterator i = self->list.begin(), l = self->list.end(); i != l; ++i)
 			{
 			    if(NEXTGEN_DEBUG_2)
                     std::cout << "CALLING CALLBACK" << std::endl;
@@ -692,17 +747,23 @@ namespace nextgen
 
 		public: void add(callback_type&& t)
 		{
-			this->list.push_back(t);
+		    auto self = *this;
+
+			self->list.push_back(t);
 		}
 
 		public: void remove(callback_type& t)
 		{
-			this->list.remove(t);
+		    auto self = *this;
+
+			self->list.remove(t);
 		}
 
 		public: bool operator!()
 		{
-			if(this->list.size() == 0)
+		    auto self = *this;
+
+			if(self->list.size() == 0)
 				return true;
 			else
 				return false;
@@ -710,7 +771,9 @@ namespace nextgen
 
 		public: operator bool()
 		{
-			if(this->list.size() == 0)
+		    auto self = *this;
+
+			if(self->list.size() == 0)
 				return true;
 			else
 				return false;
@@ -718,46 +781,75 @@ namespace nextgen
 
 		public: template<typename ...element_list_type> event<callback_type>& operator()(element_list_type&& ...element_list)
 		{
-			this->call(element_list...);
+		    auto self = *this;
+
+			self.call(element_list...);
 
 			return *this;
 		}
 
 		public: event<callback_type>& operator+(callback_type& t)
 		{
-			this->add(t);
+		    auto self = *this;
+
+			self.add(t);
 
 			return *this;
 		}
 
 		public: event<callback_type>& operator-(callback_type& t)
 		{
-			this->remove(t);
+		    auto self = *this;
+
+			self.remove(t);
 
 			return *this;
 		}
 
 		public: void operator+=(callback_type&& t)
 		{
-			this->add(t);
+		    auto self = *this;
+
+			self.add(t);
 		}
 
 		public: template<typename element_type> void operator+=(element_type&& a)
 		{
-			this->add(callback_type(a));
+		    auto self = *this;
+
+			self.add(callback_type(a));
 		}
 
 		public: void operator-=(callback_type& t)
 		{
-			this->remove(t);
+		    auto self = *this;
+
+			self.remove(t);
 		}
 
 		public: template<typename element_type> void operator-=(element_type&& a)
 		{
-			this->remove(callback_type(a));
+		    auto self = *this;
+
+			self.remove(callback_type(a));
 		}
 
-		private: callback_list_type list;
+		public: struct variables
+		{
+		    callback_list_type list;
+
+		    variables()
+		    {
+		         NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+		    }
+
+		    ~variables()
+		    {
+		         NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
+		    }
+		};
+
+		NEXTGEN_ATTACH_SHARED_VARIABLES(event, variables);
 	};
 
     namespace detail
@@ -831,6 +923,8 @@ namespace nextgen
         {
             variables()
             {
+                 NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+
                 #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
                     QueryPerformanceFrequency(&this->freq);
 
@@ -838,6 +932,11 @@ namespace nextgen
                 #elif NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_UNIX
                     gettimeofday(&this->begin, NULL);
                 #endif
+            }
+
+            ~variables()
+            {
+                 NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
             }
 
             #if NEXTGEN_PLATFORM == NEXTGEN_PLATFORM_WINDOWS
@@ -872,7 +971,6 @@ namespace nextgen
 
         return null_str;
     }
-
 
 }
 

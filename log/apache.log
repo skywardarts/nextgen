@@ -4,3 +4,5 @@
 192.168.2.3 - - [31/Dec/2009:06:38:02 -0800] "GET /favicon.ico HTTP/1.1" 404 506 "-" "Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.1.6) Gecko/20091215 Ubuntu/9.10 (karmic) Firefox/3.5.6"
 66.249.68.47 - - [31/Dec/2009:23:22:25 -0800] "GET /robots.txt HTTP/1.1" 404 509 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 66.249.68.47 - - [31/Dec/2009:23:22:25 -0800] "GET / HTTP/1.1" 200 369 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+66.249.68.27 - - [01/Jan/2010:21:54:08 -0800] "GET /robots.txt HTTP/1.1" 404 506 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+66.249.68.27 - - [01/Jan/2010:21:54:08 -0800] "GET / HTTP/1.1" 304 208 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"

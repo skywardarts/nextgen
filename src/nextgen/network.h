@@ -302,7 +302,12 @@ namespace nextgen
                 && a->value.second <= self->upper->value.second && a->value.second >= self->lower->value.second
                 && a->value.third <= self->upper->value.third && a->value.third >= self->lower->value.third
                 && a->value.forth <= self->upper->value.forth && a->value.forth >= self->lower->value.forth)
+                {
+                    std::cout << boost::numeric_cast<uint32_t>(self->lower->value.first) << "." << boost::numeric_cast<uint32_t>(self->lower->value.second) << "." << boost::numeric_cast<uint32_t>(self->lower->value.third) << "." << boost::numeric_cast<uint32_t>(self->lower->value.forth) << std::endl;
+                    std::cout << boost::numeric_cast<uint32_t>(a->value.first) << "." << boost::numeric_cast<uint32_t>(a->value.second) << "." << boost::numeric_cast<uint32_t>(a->value.third) << "." << boost::numeric_cast<uint32_t>(a->value.forth) << std::endl;
+                    std::cout << boost::numeric_cast<uint32_t>(self->upper->value.first) << "." << boost::numeric_cast<uint32_t>(self->upper->value.second) << "." << boost::numeric_cast<uint32_t>(self->upper->value.third) << "." << boost::numeric_cast<uint32_t>(self->upper->value.forth) << std::endl;
                     return true;
+                }
 
                 return false;
             }
@@ -733,7 +738,7 @@ namespace nextgen
 
                                     if(self->timeout > 0)
                                     {
-                                        self->timer.expires_from_now(boost::posix_time::seconds(30));
+                                        self->timer.expires_from_now(boost::posix_time::seconds(self->timeout));
                                         self->timer.async_wait(self->cancel_handler);
                                     }
 

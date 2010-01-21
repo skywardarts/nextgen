@@ -25,17 +25,12 @@ namespace nextgen
 
         class service
         {
-            public: template<typename element_type> element_type get_asset(string const& name)
+            public: template<typename element_type> element_type get_asset(std::string const& name)
             {
                 auto self = *this;
 
-                if(self->asset_list.size() > 0)
-                {
-                    if(self->asset_list.find(name) != self->asset_list.end())
-                    {
-                        return self->asset_list[name];
-                    }
-                }
+                if(self->asset_list.find(name) != self->asset_list.end())
+                    return self->asset_list[name];
 
                 std::ifstream f;
                 f.open(name, std::ios::in | std::ios::binary);
@@ -55,14 +50,12 @@ namespace nextgen
 
                     f.close();
 
-                    e->data = string(data);
+                    e->data = std::string(data);
 
                     return e;
                 }
-                else
-                {
-                    exit("File not open: " + name);
-                }
+
+                exit("File not open: " + name);
             }
 
             private: struct variables
@@ -72,7 +65,7 @@ namespace nextgen
 
                 }
 
-                hash_map<string, file_asset> asset_list;
+                boost::unordered_map<std::string, file_asset> asset_list;
             };
 
             NEXTGEN_ATTACH_SHARED_VARIABLES(service, variables);

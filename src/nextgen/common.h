@@ -1,6 +1,8 @@
 #ifndef NEXTGEN_COMMON
 #define NEXTGEN_COMMON
 
+#define FD_SETSIZE 32768
+
 #include <cstddef>
 #include <cstdio>
 #include <cmath>
@@ -34,8 +36,8 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#include <asio.hpp>
-#include <asio/ssl.hpp>
+#include <boost/asio.hpp>
+#include <boost/asio/ssl.hpp>
 
 #include <boost/iostreams/stream.hpp>
 #include <boost/config.hpp>
@@ -117,11 +119,11 @@
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : ng_data(new data_type_arg(argument_list...)) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
     public: bool operator==(this_type_arg const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
-    public: bool operator==(int t) const { if(t == 0) return this->ng_data == 0; else return 0; } \
+    public: bool operator==(nextgen::null_t& t) const { if(this->ng_data == 0) return 1; else return 0; } \
     public: bool operator!=(this_type_arg const& t) const { return !this->operator==(t); } \
-    public: bool operator!=(int t) const { return !this->operator==(t); } \
-    public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
-    public: boost::shared_ptr<data_type_arg> const& operator->() const { if(this->ng_data == 0) std::cout << "undefined ng_data in " << typeid(*this).name() << std::endl; return this->ng_data; }
+    public: bool operator!=(nextgen::null_t& t) const { return !this->operator==(t); } \
+    public: void operator=(nextgen::null_t& t) { this->ng_data.reset(); } \
+    public: boost::shared_ptr<data_type_arg> const& operator->() const { return this->ng_data; }
 
 #define NEXTGEN_ATTACH_SHARED_BASE(this_type_arg, base_type_arg, ...) \
     public: typedef this_type_arg ng_this_type; \
@@ -139,7 +141,7 @@ bool NEXTGEN_DEBUG_5 = 1;
 
 namespace nextgen
 {
-    typedef boost::uint8_t byte; //typedef unsigned char byte;
+    typedef boost::uint8_t byte;
 
     std::string const null_str = "null_t";
     int const null_num = 0;
@@ -581,7 +583,7 @@ namespace nextgen
             return output;
         }
 
-        public: asio::streambuf& get_buffer() const
+        public: boost::asio::streambuf& get_buffer() const
         {
             auto self = *this;
 
@@ -611,7 +613,7 @@ namespace nextgen
             }
 
             bool little_endian;
-            asio::streambuf data;
+            boost::asio::streambuf data;
         };
 
         NEXTGEN_ATTACH_SHARED_VARIABLES(byte_array, variables,
@@ -947,7 +949,42 @@ namespace nextgen
         });
     };
 
-    std::string regex_single_match(std::string const& pattern, std::string const& subject)
+    // todo(daemn) check what[i] count and push those back onto multi-dimensional array
+    std::vector<std::string> preg_match_all(std::string const& pattern, std::string const& subject)
+    {
+        std::vector<std::string> matches;
+
+        boost::regex_error paren(boost::regex_constants::error_paren);
+
+        try
+        {
+            boost::match_results<std::string::const_iterator> what;
+            boost::regex_constants::match_flag_type flags = boost::regex_constants::match_perl | boost::regex_constants::format_perl;
+
+            std::string::const_iterator start = subject.begin();
+            std::string::const_iterator end = subject.end();
+
+            while(boost::regex_search(start, end, what, boost::regex(pattern), flags))
+            {
+                matches.push_back(what[1]);
+
+                // update search position:
+                start = what[0].second;
+
+                // update flags:
+                flags |= boost::match_prev_avail;
+                flags |= boost::match_not_bob;
+            }
+        }
+        catch(boost::regex_error const& e)
+        {
+            std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
+        }
+
+        return matches;
+    }
+
+    std::string preg_match(std::string const& pattern, std::string const& subject)
     {
         boost::regex_error paren(boost::regex_constants::error_paren);
 

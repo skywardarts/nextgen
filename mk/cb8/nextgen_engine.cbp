@@ -62,6 +62,7 @@
 		<Unit filename="../../src/nextgen/math.h" />
 		<Unit filename="../../src/nextgen/network.h" />
 		<Unit filename="../../src/nextgen/social.h" />
+		<Unit filename="../../src/nextgen/web.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />

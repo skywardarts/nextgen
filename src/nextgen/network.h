@@ -9,7 +9,7 @@ namespace nextgen
     {
         class stream
         {
-            public: typedef asio::streambuf streambuf_type;
+            public: typedef boost::asio::streambuf streambuf_type;
 
             public: streambuf_type& get_buffer() const
             {
@@ -38,7 +38,7 @@ namespace nextgen
 
         struct basic_service_variables
         {
-            typedef asio::io_service service_type;
+            typedef boost::asio::io_service service_type;
 
             basic_service_variables()
             {
@@ -57,7 +57,7 @@ namespace nextgen
         class basic_service
         {
             public: typedef VariablesType variables_type;
-            private: typedef asio::io_service service_type;
+            private: typedef boost::asio::io_service service_type;
 
             public: void update()
             {
@@ -352,7 +352,7 @@ namespace nextgen
                     typedef std::string host_type;
                     typedef uint32_t port_type;
                     typedef uint32_t timeout_type;
-                    typedef asio::deadline_timer timer_type;
+                    typedef boost::asio::deadline_timer timer_type;
 
                     typedef std::function<void()> base_event_type;
                     typedef base_event_type connect_successful_event_type;
@@ -366,7 +366,7 @@ namespace nextgen
                     typedef base_event_type accept_failure_event_type;
                     typedef base_event_type close_event_type;
 
-                    layer_base_variables(service_type service) : service(service), timer(service.get_service()), timeout(180)
+                    layer_base_variables(service_type service) : service(service), timer(service.get_service()), timeout(120)
                     {
                         NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                     }
@@ -429,7 +429,7 @@ namespace nextgen
                     struct basic_accepter_variables : public accepter_base_variables
                     {
                         typedef accepter_base_variables base_type;
-                        typedef asio::ip::tcp::acceptor accepter_type;
+                        typedef boost::asio::ip::tcp::acceptor accepter_type;
                         typedef basic_service<> service_type;
 
                         basic_accepter_variables(service_type service) : base_type(), accepter_(service.get_service())
@@ -451,9 +451,9 @@ namespace nextgen
                         public: typedef VariablesType variables_type;
                         public: typedef accepter_base<variables_type> base_type;
 
-                        private: typedef asio::ip::tcp::acceptor accepter_type;
-                        private: typedef asio::ip::tcp::socket socket_type;
-                        private: typedef asio::ip::tcp::endpoint endpoint_type;
+                        private: typedef boost::asio::ip::tcp::acceptor accepter_type;
+                        private: typedef boost::asio::ip::tcp::socket socket_type;
+                        private: typedef boost::asio::ip::tcp::endpoint endpoint_type;
                         public: typedef basic_service<> service_type;
                         public: typedef uint32_t port_type;
 
@@ -461,12 +461,12 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            endpoint_type endpoint(asio::ip::tcp::v4(), port);
+                            endpoint_type endpoint(boost::asio::ip::tcp::v4(), port);
 
                             try
                             {
                                 self->accepter_.open(endpoint.protocol());
-                                self->accepter_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+                                self->accepter_.set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
 
                                 self->accepter_.bind(endpoint);
                                 self->accepter_.listen();
@@ -516,14 +516,14 @@ namespace nextgen
                         typedef basic_layer_variables<layer_type, network_layer_type> this_type;
 
                         typedef std::function<void(layer_type)> accept_successful_event_type;
-                        typedef asio::ip::tcp::socket socket_type;
-                        typedef asio::ip::tcp::resolver resolver_type;
+                        typedef boost::asio::ip::tcp::socket socket_type;
+                        typedef boost::asio::ip::tcp::resolver resolver_type;
                         typedef basic_accepter<> accepter_type;
-                        typedef std::function<void(asio::error_code const&)> cancel_handler_type;
+                        typedef std::function<void(boost::system::error_code const&)> cancel_handler_type;
                         typedef basic_service<> service_type;
-                        typedef asio::ssl::stream<asio::ip::tcp::socket&> ssl_socket_type;
+                        typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_socket_type;
 
-                        basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service()), ssl(false), ssl_context(service.get_service(), asio::ssl::context::sslv23_client), ssl_socket(socket, ssl_context)
+                        basic_layer_variables(service_type service) : base_type(service), service(service), accepter(service), socket(service.get_service()), resolver(service.get_service()), ssl(false), ssl_context(service.get_service(), boost::asio::ssl::context::sslv23_client), ssl_socket(socket, ssl_context)
                         {
                             NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                         }
@@ -541,7 +541,7 @@ namespace nextgen
                         resolver_type resolver;
                         cancel_handler_type cancel_handler;
                         bool ssl;
-                        asio::ssl::context ssl_context;
+                        boost::asio::ssl::context ssl_context;
                         ssl_socket_type ssl_socket;
 
                     };
@@ -559,12 +559,12 @@ namespace nextgen
                         public: typedef uint32_t port_type;
                         public: typedef uint32_t timeout_type;
 
-                        private: typedef asio::ip::tcp::socket socket_type;
-                        private: typedef asio::ip::tcp::resolver resolver_type;
-                        private: typedef asio::deadline_timer timer_type;
+                        private: typedef boost::asio::ip::tcp::socket socket_type;
+                        private: typedef boost::asio::ip::tcp::resolver resolver_type;
+                        private: typedef boost::asio::deadline_timer timer_type;
                         public: typedef basic_accepter<> accepter_type;
 
-                        public: typedef std::function<void(asio::error_code const&)> cancel_handler_type;
+                        public: typedef std::function<void(boost::system::error_code const&)> cancel_handler_type;
 
                         public: typedef std::function<void()> base_event_type;
                         public: typedef base_event_type connect_successful_event_type;
@@ -579,7 +579,7 @@ namespace nextgen
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef base_event_type close_event_type;
 
-                        public: typedef asio::ssl::stream<asio::ip::tcp::socket&> ssl_socket_type;
+                        public: typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_socket_type;
 
                         public: void initialize() const
                         {
@@ -587,9 +587,9 @@ namespace nextgen
 
                             auto& socket = self->socket;
 
-                            self->cancel_handler = [=, &socket](asio::error_code const& error)
+                            self->cancel_handler = [=, &socket](boost::system::error_code const& error)
                             {
-                                if(error == asio::error::operation_aborted)
+                                if(error == boost::asio::error::operation_aborted)
                                 {
                                     if(NEXTGEN_DEBUG_1)
                                         std::cout << "[nextgen:network:ip:transport:tcp:socket:cancel_handler] Timer cancelled" << std::endl;
@@ -604,7 +604,7 @@ namespace nextgen
                                     if(NEXTGEN_DEBUG_1)
                                         std::cout << "<socket::cancel> Cancelling socket" << std::endl;
 
-                                    if(socket.native() != asio::detail::invalid_socket)
+                                    if(socket.native() != boost::asio::detail::invalid_socket)
                                         socket.cancel();
                                     //else
                                     //    std::cout << "<ClientSocket> Guarded an invalid socket." << std::endl;
@@ -654,7 +654,7 @@ namespace nextgen
                             if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::cancel> Cancelling socket (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            if(self->socket.native() != asio::detail::invalid_socket)
+                            if(self->socket.native() != boost::asio::detail::invalid_socket)
                                 self->socket.cancel();
                             //else
                             //    std::cout << "<ClientSocket> Guarded an invalid socket." << std::endl;
@@ -667,7 +667,7 @@ namespace nextgen
                             if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::close> Closing socket normally. (" << self->network_layer.get_host() << ":" << self->network_layer.get_port() << ")" << std::endl;
 
-                            if(self->socket.native() != asio::detail::invalid_socket)
+                            if(self->socket.native() != boost::asio::detail::invalid_socket)
                                 self->socket.close();
 
                             self->close_event();
@@ -677,7 +677,7 @@ namespace nextgen
                         {
                             auto self = *this;
 
-                            asio::socket_base::bytes_readable command(true);
+                            boost::asio::socket_base::bytes_readable command(true);
                             self->socket.io_control(command);
 
                             return command.get();
@@ -715,7 +715,7 @@ namespace nextgen
                             }
 
                             self->resolver.async_resolve(query,
-                            [=](asio::error_code const& error, resolver_type::iterator endpoint_iterator)
+                            [=](boost::system::error_code const& error, resolver_type::iterator endpoint_iterator)
                             {
                                 if(NEXTGEN_DEBUG_1)
                                     std::cout << "<socket::connect handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
@@ -729,7 +729,7 @@ namespace nextgen
                                         std::cout << "<socket::connect handler> resolve success (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
                                     //todo(daemn) add additional endpoint connection tries
-                                    asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
+                                    boost::asio::ip::tcp::endpoint endpoint = *endpoint_iterator;
 
                                     //++endpoint_iterator;
 
@@ -742,7 +742,7 @@ namespace nextgen
                                         self->timer.async_wait(self->cancel_handler);
                                     }
 
-                                    self->socket.async_connect(endpoint, [=](asio::error_code const& error)
+                                    self->socket.async_connect(endpoint, [=](boost::system::error_code const& error)
                                     {
                                         if(NEXTGEN_DEBUG_1)
                                             std::cout << "<socket::connect handler> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
@@ -806,7 +806,7 @@ namespace nextgen
                                 self->timer.async_wait(self->cancel_handler);
                             }
 
-                            auto on_write = [=](asio::error_code const& error, size_t& total)
+                            auto on_write = [=](boost::system::error_code const& error, size_t& total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
@@ -832,9 +832,9 @@ namespace nextgen
                             };
 
                             if(self->ssl)
-                                asio::async_write(self->ssl_socket, stream.get_buffer(), on_write);
+                                boost::asio::async_write(self->ssl_socket, stream.get_buffer(), on_write);
                             else
-                                asio::async_write(self->socket, stream.get_buffer(), on_write);
+                                boost::asio::async_write(self->socket, stream.get_buffer(), on_write);
                         }
 
                         public: template<typename stream_type> void receive_until(std::string const& delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
@@ -854,7 +854,7 @@ namespace nextgen
                             if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::receive> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
-                            auto on_read = [=](asio::error_code const& error, uint32_t total)
+                            auto on_read = [=](boost::system::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
@@ -886,9 +886,9 @@ namespace nextgen
                             }
 
                             if(self->ssl)
-                                asio::async_read_until(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
+                                boost::asio::async_read_until(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
                             else
-                                asio::async_read_until(self->socket, stream.get_buffer(), delimiter, on_read);
+                                boost::asio::async_read_until(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
                         public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
@@ -908,7 +908,7 @@ namespace nextgen
                             if(NEXTGEN_DEBUG_1)
                                 std::cout << "<socket::receive> (" << self.get_host() << ":" << self.get_port() << ")" << std::endl;
 
-                            auto on_read = [=](asio::error_code const& error, uint32_t total)
+                            auto on_read = [=](boost::system::error_code const& error, uint32_t total)
                             {
                                 stream.get_buffer(); // bugfix(daemn)
 
@@ -940,9 +940,9 @@ namespace nextgen
                             }
 
                             if(self->ssl)
-                                asio::async_read(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
+                                boost::asio::async_read(self->ssl_socket, stream.get_buffer(), delimiter, on_read);
                             else
-                                asio::async_read(self->socket, stream.get_buffer(), delimiter, on_read);
+                                boost::asio::async_read(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
                         public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
@@ -966,7 +966,7 @@ namespace nextgen
                             if(self->accepter->port != port)
                                 self->accepter.open(port);
 
-                            auto on_accept = [=](asio::error_code const& error)
+                            auto on_accept = [=](boost::system::error_code const& error)
                             {
                                 if(NEXTGEN_DEBUG_1)
                                     std::cout << "[nextgen:network:ip:transport:tcp:socket:accept] Trying to accept client..." << std::endl;
@@ -1204,7 +1204,7 @@ namespace nextgen
                         message_type response;
 
                         // todo(daemn) change to receive until EOF
-                        self->transport_layer.receive(asio::transfer_at_least(1), response->stream,
+                        self->transport_layer.receive(boost::asio::transfer_at_least(1), response->stream,
                         [=]
                         {
                             response.unpack();
@@ -1424,7 +1424,7 @@ namespace nextgen
                                 {
                                     std::cout << "S: " << "got a ehlo" << std::endl;
 
-                                    std::string ehlo = nextgen::regex_single_match("EHLO (.+)\r\n", response->content);
+                                    std::string ehlo = nextgen::preg_match("EHLO (.+)\r\n", response->content);
 
                                     std::cout << "S: " << "250-localhost\r\n" << std::endl;
                                     std::cout << "S: " << "250 HELP\r\n" << std::endl;
@@ -2082,7 +2082,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                             std::string host;
                             uint32_t port;
 
-                            if(self->proxy != 0)
+                            if(self->proxy != null)
                             {
                                 host = self->proxy->host;
                                 port = self->proxy->port;
@@ -2103,10 +2103,16 @@ std::cout << "size: " << self->content.size() << std::endl;
                                 if(NEXTGEN_DEBUG_4)
                                     std::cout << "[nextgen::network::http_client] Connected" << std::endl;
 
-
                                 //if(self->proxy ==proxy_type::types::transparent
                                 //|| self->proxy ==proxy_type::types::distorting
                                 //|| self->proxy ==proxy_type::types::anonymous)
+                                if(self->proxy == null)
+                                {
+                                    successful_handler();
+
+                                    return;
+                                }
+
                                 if(self->proxy->type == proxy_type::types::socks4
                                 || self->proxy->type == proxy_type::types::socks4n5)
                                 {
@@ -2142,7 +2148,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         byte_array r2;
 
-                                        self->transport_layer.receive(asio::transfer_at_least(8), r2,
+                                        self->transport_layer.receive(boost::asio::transfer_at_least(8), r2,
                                         [=]
                                         {
                                             if(NEXTGEN_DEBUG_4)
@@ -2202,7 +2208,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                         byte_array r2;
 
-                                        self->transport_layer.receive(asio::transfer_at_least(2), r2,
+                                        self->transport_layer.receive(boost::asio::transfer_at_least(2), r2,
                                         [=]
                                         {
                                             if(NEXTGEN_DEBUG_4)
@@ -2248,7 +2254,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                 {
                                                     byte_array r4;
 
-                                                    self->transport_layer.receive(asio::transfer_at_least(1), r4,
+                                                    self->transport_layer.receive(boost::asio::transfer_at_least(1), r4,
                                                     [=]()
                                                     {
                                                         byte nothing;
@@ -2303,8 +2309,8 @@ std::cout << "size: " << self->content.size() << std::endl;
                                     {
                                         self->transport_layer->ssl = true;
 
-                                        self->transport_layer->ssl_socket.async_handshake(asio::ssl::stream_base::client,
-                                        [=](asio::error_code const& error)
+                                        self->transport_layer->ssl_socket.async_handshake(boost::asio::ssl::stream_base::client,
+                                        [=](boost::system::error_code const& error)
                                         {
                                             if(!error)
                                             {
@@ -2345,7 +2351,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                             std::cout << "receive_chunked_data" << std::endl;
 
-                            self->transport_layer.receive(asio::transfer_at_least(length), response->stream,
+                            self->transport_layer.receive(boost::asio::transfer_at_least(length), response->stream,
                             [=]
                             {
                                 std::istream data_stream(&response->stream.get_buffer());
@@ -2556,7 +2562,7 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                                                     std::cout << "after: " << to_hex(response->content) << std::endl;
 
-                                                    if(self->proxy != null_str
+                                                    if(self->proxy != null
                                                     && response->content.find("Content-Type") != std::string::npos)
                                                     {
                                                         // this proxy wrapped the headers in the content
@@ -2592,7 +2598,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                             if(NEXTGEN_DEBUG_4)
                                                 std::cout << "trying to receive length = " << content_length << std::endl;
 
-                                            self->transport_layer.receive(asio::transfer_at_least(content_length), response->stream,
+                                            self->transport_layer.receive(boost::asio::transfer_at_least(content_length), response->stream,
                                             [=]
                                             {
                                                 response.unpack_content();
@@ -2632,7 +2638,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                                             if(NEXTGEN_DEBUG_5)
                                                 std::cout << "No http content-length specified so assuming its auto EOF" << std::endl;
 
-                                            self->transport_layer.receive(asio::transfer_at_least(1), response->stream,
+                                            self->transport_layer.receive(boost::asio::transfer_at_least(1), response->stream,
                                             [=]
                                             {
                                                 response.unpack_content();
@@ -3030,11 +3036,11 @@ std::cout << "size: " << self->content.size() << std::endl;
             if(NEXTGEN_DEBUG_2)
                 std::cout << "timeout for " << milliseconds << std::endl;
 
-            boost::shared_ptr<asio::deadline_timer> timer(new asio::deadline_timer(service.get_service()));
+            boost::shared_ptr<boost::asio::deadline_timer> timer(new boost::asio::deadline_timer(service.get_service()));
 
             timer->expires_from_now(boost::posix_time::milliseconds(milliseconds));
 
-            timer->async_wait([=](asio::error_code const& error)
+            timer->async_wait([=](boost::system::error_code const& error)
             {
                 timer->expires_from_now(); // bugfix(daemn) it's going to go out of scope and cancel the timer automatically
 

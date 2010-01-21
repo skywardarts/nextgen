@@ -28,12 +28,7 @@
 #include <cstring>
 #include <cxxabi.h>
 
-
-//#include <time.h>
-//#include <math.h>
 #include <errno.h>
-//#include <signal.h>
-//#include <typeinfo.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <netinet/in.h>

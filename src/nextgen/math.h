@@ -86,11 +86,6 @@ namespace nextgen
                     this->w_ = w_;
                 }
 
-                ~variables()
-                {
-
-                }
-
                 element_type x_;
                 element_type y_;
                 element_type z_;
@@ -98,7 +93,7 @@ namespace nextgen
                 bool changed;
             };
 
-            NEXTGEN_SHARED_DATA(vector, variables);
+            NEXTGEN_ATTACH_SHARED_VARIABLES(vector, variables);
         };
 
         //template<class element_type> using vector2 = vector<element_type>;
@@ -163,10 +158,10 @@ namespace nextgen
         template <typename element_type>
         inline vector<element_type> operator--(vector<element_type> v)
         {
-            v->x_ = --v->x_;
-            v->y_ = --v->y_;
-            v->z_ = --v->z_;
-            v->w_ = --v->w_;
+            --v->x_;
+            --v->y_;
+            --v->z_;
+            --v->w_;
 
             return v;
         }
@@ -174,10 +169,10 @@ namespace nextgen
         template <typename element_type>
         inline vector<element_type> operator++(vector<element_type> v)
         {
-            v->x_ = ++v->x_;
-            v->y_ = ++v->y_;
-            v->z_ = ++v->z_;
-            v->w_ = ++v->w_;
+            ++v->x_;
+            ++v->y_;
+            ++v->z_;
+            ++v->w_;
 
             return v;
         }

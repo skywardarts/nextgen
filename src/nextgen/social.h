@@ -71,7 +71,7 @@ namespace nextgen
 
         class basic_email
         {
-            public: typedef std::function<void(std::string)> receive_successful_event_type;
+            public: typedef event<std::function<void(std::string)>> receive_successful_event_type;
 
             public: void receive(receive_successful_event_type successful_handler) const
             {

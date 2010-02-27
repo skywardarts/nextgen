@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Linux Debug" />
+	<File name="../../src/nextgen/common.h" open="1" top="0" tabpos="0">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="../../src/nextgen/content.h" open="0" top="0" tabpos="0">
+		<Cursor position="752" topLine="18" />
+	</File>
+	<File name="../../src/nextgen/database.h" open="0" top="0" tabpos="0">
+		<Cursor position="493" topLine="0" />
+	</File>
+	<File name="../../src/nextgen/engine.h" open="0" top="0" tabpos="0">
+		<Cursor position="17506" topLine="423" />
+	</File>
+	<File name="../../src/nextgen/network.h" open="0" top="0" tabpos="0">
+		<Cursor position="144111" topLine="3019" />
+	</File>
+	<File name="../../src/nextgen/web.h" open="0" top="0" tabpos="1">
+		<Cursor position="0" topLine="0" />
+	</File>
 </CodeBlocks_layout_file>

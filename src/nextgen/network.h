@@ -86,7 +86,7 @@ namespace nextgen
                     typedef std::string host_type;
                     typedef uint32_t port_type;
 
-                    layer_base_variables(host_type const& host = null, port_type port = null) : host(host), port(port)
+                    layer_base_variables(host_type const& host = null_str, port_type port = null) : host(host), port(port)
                     {
                         NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                     }
@@ -145,7 +145,7 @@ namespace nextgen
                     {
                         typedef layer_base_variables base_type;
 
-                        basic_layer_variables(host_type const& host = null, port_type port = null) : base_type(host, port)
+                        basic_layer_variables(host_type const& host = null_str, port_type port = null) : base_type(host, port)
                         {
                             NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                         }
@@ -173,7 +173,7 @@ namespace nextgen
                     {
                         typedef layer_base_variables base_type;
 
-                        basic_layer_variables(host_type const& host = null, port_type port = null) : base_type(host, port)
+                        basic_layer_variables(host_type const& host = null_str, port_type port = null) : base_type(host, port)
                         {
 
                         }
@@ -354,7 +354,7 @@ namespace nextgen
                     typedef uint32_t timeout_type;
                     typedef boost::asio::deadline_timer timer_type;
 
-                    typedef std::function<void()> base_event_type;
+                    typedef event<std::function<void()>> base_event_type;
                     typedef base_event_type connect_successful_event_type;
                     typedef base_event_type connect_failure_event_type;
                     typedef base_event_type receive_successful_event_type;
@@ -376,14 +376,14 @@ namespace nextgen
                         NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
-                    event<send_successful_event_type> send_successful_event;
-                    event<send_failure_event_type> send_failure_event;
-                    event<connect_successful_event_type> connect_successful_event;
-                    event<connect_failure_event_type> connect_failure_event;
-                    event<receive_successful_event_type> receive_successful_event;
-                    event<receive_failure_event_type> receive_failure_event;
-                    event<accept_failure_event_type> accept_failure_event;
-                    event<close_event_type> close_event;
+                    send_successful_event_type send_successful_event;
+                    send_failure_event_type send_failure_event;
+                    connect_successful_event_type connect_successful_event;
+                    connect_failure_event_type connect_failure_event;
+                    receive_successful_event_type receive_successful_event;
+                    receive_failure_event_type receive_failure_event;
+                    accept_failure_event_type accept_failure_event;
+                    close_event_type close_event;
 
                     service_type service;
                     timer_type timer;
@@ -515,11 +515,11 @@ namespace nextgen
                         typedef layer_base_variables<network_layer_type> base_type;
                         typedef basic_layer_variables<layer_type, network_layer_type> this_type;
 
-                        typedef std::function<void(layer_type)> accept_successful_event_type;
+                        typedef event<std::function<void(layer_type)>> accept_successful_event_type;
                         typedef boost::asio::ip::tcp::socket socket_type;
                         typedef boost::asio::ip::tcp::resolver resolver_type;
                         typedef basic_accepter<> accepter_type;
-                        typedef std::function<void(boost::system::error_code const&)> cancel_handler_type;
+                        typedef event<std::function<void(boost::system::error_code const&)>> cancel_handler_type;
                         typedef basic_service<> service_type;
                         typedef boost::asio::ssl::stream<boost::asio::ip::tcp::socket&> ssl_socket_type;
 
@@ -564,9 +564,9 @@ namespace nextgen
                         private: typedef boost::asio::deadline_timer timer_type;
                         public: typedef basic_accepter<> accepter_type;
 
-                        public: typedef std::function<void(boost::system::error_code const&)> cancel_handler_type;
+                        public: typedef event<std::function<void(boost::system::error_code const&)>> cancel_handler_type;
 
-                        public: typedef std::function<void()> base_event_type;
+                        public: typedef event<std::function<void()>> base_event_type;
                         public: typedef base_event_type connect_successful_event_type;
                         public: typedef base_event_type connect_failure_event_type;
                         public: typedef base_event_type receive_successful_event_type;
@@ -575,7 +575,7 @@ namespace nextgen
                         public: typedef base_event_type send_failure_event_type;
                         public: typedef base_event_type quit_successful_event_type;
                         public: typedef base_event_type quit_failure_event_type;
-                        public: typedef std::function<void(this_type)> accept_successful_event_type;
+                        public: typedef event<std::function<void(this_type)>> accept_successful_event_type;
                         public: typedef base_event_type accept_failure_event_type;
                         public: typedef base_event_type close_event_type;
 
@@ -683,7 +683,7 @@ namespace nextgen
                             return command.get();
                         }
 
-                        public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
                         {
                             auto self2 = *this;
                             auto self = self2;
@@ -691,10 +691,10 @@ namespace nextgen
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->connect_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->connect_failure_event;
 
                             self.set_host(host_);
@@ -787,14 +787,17 @@ namespace nextgen
                             self->timer.cancel();
                         }
 
-                        public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        public: template<typename stream_type> void send(stream_type stream, send_successful_event_type successful_handler2 = null, send_failure_event_type failure_handler2 = null) const
                         {
                             auto self = *this;
 
-                            if(successful_handler == 0)
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!
+
+                            if(successful_handler == null)
                                 successful_handler = self->send_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->send_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
@@ -837,7 +840,7 @@ namespace nextgen
                                 boost::asio::async_write(self->socket, stream.get_buffer(), on_write);
                         }
 
-                        public: template<typename stream_type> void receive_until(std::string const& delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
+                        public: template<typename stream_type> void receive_until(std::string const& delimiter, stream_type stream, receive_successful_event_type successful_handler2 = null, receive_failure_event_type failure_handler2 = null) const
                         {
                             auto self2 = *this;
                             auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
@@ -845,10 +848,10 @@ namespace nextgen
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->receive_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
@@ -891,7 +894,7 @@ namespace nextgen
                                 boost::asio::async_read_until(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
-                        public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type stream, receive_successful_event_type successful_handler2 = 0, receive_failure_event_type failure_handler2 = 0) const
+                        public: template<typename delimiter_type, typename stream_type> void receive(delimiter_type delimiter, stream_type stream, receive_successful_event_type successful_handler2 = null, receive_failure_event_type failure_handler2 = null) const
                         {
                             auto self2 = *this;
                             auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
@@ -899,10 +902,10 @@ namespace nextgen
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->receive_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->receive_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
@@ -945,17 +948,18 @@ namespace nextgen
                                 boost::asio::async_read(self->socket, stream.get_buffer(), delimiter, on_read);
                         }
 
-                        public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0) const
+                        public: void accept(port_type port, accept_successful_event_type successful_handler2 = null, accept_failure_event_type failure_handler2 = null) const
                         {
-                            auto self = *this;
+                            auto self2 = *this;
+                            auto self = self2; // bugfix(daemn) weird lambda stack bug, would only accept PBR
 
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->accept_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->accept_failure_event;
 
                             if(NEXTGEN_DEBUG_1)
@@ -1091,8 +1095,9 @@ namespace nextgen
 
                     typedef basic_service<> service_type;
 
-                    typedef std::function<void(message_type)> receive_successful_event_type;
-                    typedef std::function<void(layer_type)> accept_successful_event_type;
+                    typedef event<std::function<void()>> base_event_type;
+                    typedef event<std::function<void(message_type)>> receive_successful_event_type;
+                    typedef event<std::function<void(layer_type)>> accept_successful_event_type;
 
                     layer_base_variables(service_type service) : transport_layer(service), keep_alive_threshold(0), host(null_str), port(null)
                     {
@@ -1109,15 +1114,15 @@ namespace nextgen
                         NEXTGEN_DEBUG_DECONSTRUCTOR(*this);
                     }
 
-                    event<std::function<void()>> send_successful_event;
-                    event<std::function<void()>> send_failure_event;
-                    event<receive_successful_event_type> receive_successful_event;
-                    event<std::function<void()>> receive_failure_event;
-                    event<std::function<void()>> connect_successful_event;
-                    event<std::function<void()>> connect_failure_event;
-                    event<accept_successful_event_type> accept_successful_event;
-                    event<std::function<void()>> accept_failure_event;
-                    event<std::function<void()>> disconnect_event;
+                    base_event_type send_successful_event;
+                    base_event_type send_failure_event;
+                    receive_successful_event_type receive_successful_event;
+                    base_event_type receive_failure_event;
+                    base_event_type connect_successful_event;
+                    base_event_type connect_failure_event;
+                    accept_successful_event_type accept_successful_event;
+                    base_event_type accept_failure_event;
+                    base_event_type disconnect_event;
 
                     timer keep_alive_timer;
                     transport_layer_type transport_layer;
@@ -1137,14 +1142,14 @@ namespace nextgen
                     public: typedef TransportLayerType transport_layer_type;
                     public: typedef layer_base<transport_layer_type, message_type, variables_type> this_type;
 
-                    public: typedef std::function<void()> base_event_type;
+                    public: typedef event<std::function<void()>> base_event_type;
                     public: typedef base_event_type connect_successful_event_type;
                     public: typedef base_event_type connect_failure_event_type;
-                    public: typedef std::function<void(message_type)> receive_successful_event_type;
+                    public: typedef event<std::function<void(message_type)>> receive_successful_event_type;
                     public: typedef base_event_type receive_failure_event_type;
                     public: typedef base_event_type send_successful_event_type;
                     public: typedef base_event_type send_failure_event_type;
-                    public: typedef std::function<void(layer_type)> accept_successful_event_type;
+                    public: typedef event<std::function<void(layer_type)>> accept_successful_event_type;
                     public: typedef base_event_type accept_failure_event_type;
                     public: typedef base_event_type disconnect_event_type;
 
@@ -1156,7 +1161,8 @@ namespace nextgen
 
                     public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
 
                         auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                         auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
@@ -1173,9 +1179,13 @@ namespace nextgen
                         self->transport_layer.connect(host_, port_, successful_handler, failure_handler);
                     }
 
-                    public: void reconnect(connect_successful_event_type successful_handler = 0, connect_failure_event_type failure_handler = 0) const
+                    public: void reconnect(connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
+
+                        auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                        auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                         if(NEXTGEN_DEBUG_5)
                             std::cout << "[nextgen::network::layer_base] reconnecting" << std::endl;
@@ -1191,14 +1201,18 @@ namespace nextgen
                         self->transport_layer.close();
                     }
 
-                    public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
+                    public: void receive(receive_successful_event_type successful_handler2 = null, receive_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
 
-                        if(successful_handler == 0)
+                        auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                        auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                        if(successful_handler == null)
                             successful_handler = self->receive_successful_event;
 
-                        if(failure_handler == 0)
+                        if(failure_handler == null)
                             failure_handler = self->receive_failure_event;
 
                         message_type response;
@@ -1214,36 +1228,48 @@ namespace nextgen
                         failure_handler);
                     }
 
-                    public: template<typename stream_type> void send_stream(stream_type stream, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                    public: template<typename stream_type> void send_stream(stream_type stream, send_successful_event_type successful_handler2 = null, send_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
 
-                        if(successful_handler == 0)
+                        auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                        auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                        if(successful_handler == null)
                             successful_handler = self->send_successful_event;
 
-                        if(failure_handler == 0)
+                        if(failure_handler == null)
                             failure_handler = self->send_failure_event;
 
                         self->transport_layer.send(stream, successful_handler, failure_handler);
                     }
 
-                    public: void send(message_type request, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                    public: void send(message_type request, send_successful_event_type successful_handler2 = null, send_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
+
+                        auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                        auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                         request.pack();
 
                         self.send_stream(request->stream, successful_handler, failure_handler);
                     }
 
-                    public: void send_and_receive(message_type request, receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
+                    public: void send_and_receive(message_type request, receive_successful_event_type successful_handler2 = null, receive_failure_event_type failure_handler2 = null) const
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
 
-                        if(successful_handler == 0)
+                        auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                        auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                        if(successful_handler == null)
                             successful_handler = self->receive_successful_event;
 
-                        if(failure_handler == 0)
+                        if(failure_handler == null)
                             failure_handler = self->receive_failure_event;
 
                         self.send(request,
@@ -1256,17 +1282,18 @@ namespace nextgen
                         failure_handler);
                     }
 
-                    public: void accept(port_type port, accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
+                    public: void accept(port_type port, accept_successful_event_type successful_handler2 = null, accept_failure_event_type failure_handler2 = null)
                     {
-                        layer_type self = *this;
+                        layer_type self2 = *this;
+                        auto self = self2;
 
                         auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                         auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
-                        if(successful_handler == 0)
+                        if(successful_handler == null)
                             successful_handler = self->accept_successful_event;
 
-                        if(failure_handler == 0)
+                        if(failure_handler == null)
                             failure_handler = self->accept_failure_event;
 
                         self->transport_layer.accept(port,
@@ -1311,7 +1338,7 @@ namespace nextgen
                     };
 
                     template<typename LayerType, typename TransportLayerType, typename MessageType = basic_message<>>
-                    struct basic_layer_variables : layer_base_variables<LayerType, TransportLayerType, MessageType>
+                    struct basic_layer_variables : public layer_base_variables<LayerType, TransportLayerType, MessageType>
                     {
                         typedef TransportLayerType transport_layer_type;
                         typedef MessageType message_type;
@@ -1530,9 +1557,9 @@ namespace nextgen
                     {
                         public: typedef basic_proxy this_type;
                         public: typedef std::string host_type;
-                        public: typedef uint32_t port_type;
-                        public: typedef uint32_t id_type;
-                        public: typedef uint32_t type_type;
+                        public: typedef int32_t port_type;
+                        public: typedef int32_t id_type;
+                        public: typedef int32_t type_type;
                         public: typedef float latency_type;
                         public: typedef timer timer_type;
 
@@ -1567,7 +1594,7 @@ namespace nextgen
 
                         private: struct variables
                         {
-                            variables(host_type const& host = null, port_type port = null, id_type id = null, type_type type = null, latency_type latency = null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
+                            variables(host_type const& host = null_str, port_type port = null_num, id_type id = null_num, type_type type = null_num, latency_type latency = null) : rating(0), host(host), port(port), id(id), type(0), latency(0.0), state(0), check_delay(6 * 60 * 60)
                             {
                                 NEXTGEN_DEBUG_CONSTRUCTOR(*this);
                             }
@@ -1581,7 +1608,7 @@ namespace nextgen
                             host_type host;
                             port_type port;
                             id_type id;
-                            uint32_t type;
+                            type_type type;
                             latency_type latency;
                             timer_type timer;
                             uint32_t state;
@@ -1638,7 +1665,6 @@ namespace nextgen
                         std::string username;
                         std::string password;
                         std::string scheme;
-
                     };
 
                     template<typename VariablesType = basic_message_variables>
@@ -1711,8 +1737,10 @@ namespace nextgen
                                 {
                                     std::cout << response_header << "\r\n" << std::endl;
                                     std::cout << self->raw_header_list << "\r\n" << std::endl;
-                                    std::cout << self->content << std::endl;
                                 }
+
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << self->content << std::endl;
 
                                 data_stream << response_header + "\r\n";
                                 data_stream << self->raw_header_list + "\r\n";
@@ -1816,8 +1844,10 @@ namespace nextgen
                                 {
                                     std::cout << request_header << std::endl;
                                     std::cout << raw_header_list << std::endl;
-                                    std::cout << content << std::endl;
                                 }
+
+                                if(NEXTGEN_DEBUG_3)
+                                    std::cout << content << std::endl;
 
                                 data_stream << request_header + "\r\n";
                                 data_stream << raw_header_list + "\r\n";
@@ -2002,7 +2032,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                     };
 
                     template<typename LayerType, typename TransportLayerType, typename MessageType = basic_message<>>
-                    struct basic_layer_variables : layer_base_variables<LayerType, TransportLayerType, MessageType>
+                    struct basic_layer_variables : public layer_base_variables<LayerType, TransportLayerType, MessageType>
                     {
                         typedef TransportLayerType transport_layer_type;
                         typedef MessageType message_type;
@@ -2044,7 +2074,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename base_type::connect_failure_event_type connect_failure_event_type;
                         public: typedef typename base_type::send_successful_event_type send_successful_event_type;
                         public: typedef typename base_type::send_failure_event_type send_failure_event_type;
-                        public: typedef std::function<void(message_type)> receive_successful_event_type;
+                        public: typedef event<std::function<void(message_type)>> receive_successful_event_type;
                         public: typedef typename base_type::receive_failure_event_type receive_failure_event_type;
                         public: typedef typename base_type::host_type host_type;
                         public: typedef typename base_type::port_type port_type;
@@ -2052,28 +2082,40 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef typename variables_type::proxy_type proxy_type;
 
 
-                        public: void reconnect(connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: void reconnect(connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
                         {
-                            auto self = *this;
+                            auto self2 = *this;
+                            auto self = self2;
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                             if(NEXTGEN_DEBUG_5)
                                 std::cout << "[nextgen::network::http_client] reconnecting" << std::endl;
 
                             self.disconnect();
-                            self.connect(self->host, self->port, successful_handler2, failure_handler2);
+                            self.connect(self->host, self->port, successful_handler, failure_handler);
                         }
 
-                        public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = 0, connect_failure_event_type failure_handler2 = 0) const
+                        public: std::string get_ip() const
                         {
                             auto self = *this;
+
+                            return self->transport_layer->socket.remote_endpoint().address().to_string();
+                        }
+
+                        public: void connect(host_type const& host_, port_type port_, connect_successful_event_type successful_handler2 = null, connect_failure_event_type failure_handler2 = null) const
+                        {
+                            auto self2 = *this;
+                            auto self = self2;
 
                             auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                             auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
-                            if(successful_handler == 0)
+                            if(successful_handler == null)
                                 successful_handler = self->connect_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->connect_failure_event;
 
                             self->host = host_;
@@ -2289,9 +2331,13 @@ std::cout << "size: " << self->content.size() << std::endl;
                             failure_handler);
                         }
 
-                        public: void send(message_type request, send_successful_event_type successful_handler = 0, send_failure_event_type failure_handler = 0) const
+                        public: void send(message_type request, send_successful_event_type successful_handler2 = null, send_failure_event_type failure_handler2 = null) const
                         {
-                            auto self = *this;
+                            auto self2 = *this;
+                            auto self = self2;
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                             if(request->url.find("https") != std::string::npos
                             && !self->transport_layer->ssl)
@@ -2345,9 +2391,13 @@ std::cout << "size: " << self->content.size() << std::endl;
                             }
                         }
 
-                        private: void receive_chunked_data(message_type response, size_t length = 1, base_event_type successful_handler = 0, base_event_type failure_handler = 0) const
+                        private: void receive_chunked_data(message_type response, size_t length = 1, base_event_type successful_handler2 = 0, base_event_type failure_handler2 = 0) const
                         {
-                            auto self = *this;
+                            auto self2 = *this;
+                            auto self = self2;
+
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
                             std::cout << "receive_chunked_data" << std::endl;
 
@@ -2442,14 +2492,18 @@ std::cout << "size: " << self->content.size() << std::endl;
                             failure_handler);
                         }
 
-                        public: void receive(receive_successful_event_type successful_handler = 0, receive_failure_event_type failure_handler = 0) const
+                        public: void receive(receive_successful_event_type successful_handler2 = null, receive_failure_event_type failure_handler2 = null) const
                         {
-                            auto self = *this;
+                            auto self2 = *this;
+                            auto self = self2;
 
-                            if(successful_handler == 0)
+                            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+                            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
+                            if(successful_handler == null)
                                 successful_handler = self->receive_successful_event;
 
-                            if(failure_handler == 0)
+                            if(failure_handler == null)
                                 failure_handler = self->receive_failure_event;
 
                             message_type response2;
@@ -2570,7 +2624,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                                                         response->raw_header_list = response->content;
                                                         response.unpack_headers();
                                                         response.unpack_content();
-
                                                     }
 
                                                     successful_handler(response);
@@ -2681,6 +2734,10 @@ std::cout << "size: " << self->content.size() << std::endl;
                     {
                         typedef message_base_variables base_type;
 
+                        basic_message_variables() : base_type()
+                        {
+
+                        }
                     };
 
                     template<typename VariablesType = basic_message_variables>
@@ -2737,6 +2794,10 @@ std::cout << "size: " << self->content.size() << std::endl;
                     {
                         typedef message_base_variables base_type;
 
+                        basic_message_variables() : base_type(), id(0), length(0)
+                        {
+
+                        }
 
                         uint32_t id;
                         uint32_t length;
@@ -2812,19 +2873,6 @@ std::cout << "size: " << self->content.size() << std::endl;
                         public: typedef basic_layer<transport_layer_type> this_type;
                         public: typedef layer_base<this_type, transport_layer_type, message_type, variables_type> base_type;
 
-                        public: typedef typename base_type::base_event_type base_event_type;
-                        public: typedef typename base_type::connect_successful_event_type connect_successful_event_type;
-                        public: typedef typename base_type::connect_failure_event_type connect_failure_event_type;
-                        public: typedef typename base_type::send_successful_event_type send_successful_event_type;
-                        public: typedef typename base_type::send_failure_event_type send_failure_event_type;
-                        public: typedef std::function<void(message_type)> receive_successful_event_type;
-                        public: typedef typename base_type::receive_failure_event_type receive_failure_event_type;
-                        public: typedef std::function<void(this_type)> accept_successful_event_type;
-                        public: typedef typename base_type::accept_failure_event_type accept_failure_event_type;
-                        public: typedef typename base_type::host_type host_type;
-                        public: typedef typename base_type::port_type port_type;
-                        public: typedef typename base_type::keep_alive_threshold_type keep_alive_threshold_type;
-
                         NEXTGEN_ATTACH_SHARED_BASE(basic_layer, base_type);
                     };
                 }
@@ -2852,8 +2900,8 @@ std::cout << "size: " << self->content.size() << std::endl;
             public: typedef layer client_type;
             public: typedef uint32_t port_type;
 
-            public: typedef std::function<void()> base_event_type;
-            public: typedef std::function<void(client_type)> accept_successful_event_type;
+            public: typedef event<std::function<void()>> base_event_type;
+            public: typedef event<std::function<void(client_type)>> accept_successful_event_type;
             public: typedef base_event_type accept_failure_event_type;
         };
 
@@ -2865,12 +2913,12 @@ std::cout << "size: " << self->content.size() << std::endl;
             public: typedef layer_type server_type;
             public: typedef layer_type client_type;
             public: typedef std::list<client_type> client_list_type;
-            public: typedef uint32_t port_type;
-            public: typedef std::function<void()> base_event_type;
-            public: typedef std::function<void(client_type)> accept_successful_event_type;
+            public: typedef int32_t port_type;
+            public: typedef event<std::function<void()>> base_event_type;
+            public: typedef event<std::function<void(client_type)>> accept_successful_event_type;
             public: typedef base_event_type accept_failure_event_type;
 
-            public: void accept(accept_successful_event_type successful_handler2 = 0, accept_failure_event_type failure_handler2 = 0)
+            public: void accept(accept_successful_event_type successful_handler2 = null, accept_failure_event_type failure_handler2 = null)
             {
                 auto self2 = *this;
                 auto self = self2;
@@ -2881,10 +2929,10 @@ std::cout << "size: " << self->content.size() << std::endl;
                 auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
                 auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
 
-                if(successful_handler == 0)
+                if(successful_handler == null)
                     successful_handler = self->accept_successful_event;
 
-                if(failure_handler == 0)
+                if(failure_handler == null)
                     failure_handler = self->accept_failure_event;
 
                 self->server.accept(self->port,
@@ -2952,7 +3000,7 @@ std::cout << "size: " << self->content.size() << std::endl;
                 if(NEXTGEN_DEBUG_4)
                     std::cout << "[nextgen:server] Cleaning out expired clients.";
 
-                std::remove_if(self->client_list.begin(), self->client_list.end(), [=](client_type& client) -> bool
+                std::remove_if(self->client_list.begin(), self->client_list.end(), [&](client_type& client) -> bool
                 {
                     if(client.is_alive())
                     {
@@ -2980,14 +3028,14 @@ std::cout << "size: " << self->content.size() << std::endl;
 
                 }
 
-                event<accept_failure_event_type> accept_failure_event;
-                event<accept_successful_event_type> accept_successful_event;
+                accept_failure_event_type accept_failure_event;
+                accept_successful_event_type accept_successful_event;
 
                 service_type service;
                 server_type server;
                 port_type port;
                 client_list_type client_list;
-                boost::unordered_map<std::string, nextgen::event<std::function<void(std::string)>>> handler_list;
+                boost::unordered_map<std::string, event<std::function<void(std::string)>>> handler_list;
             };
 
             NEXTGEN_ATTACH_SHARED_VARIABLES(basic_server, variables);
@@ -2999,8 +3047,11 @@ std::cout << "size: " << self->content.size() << std::endl;
         typedef basic_server<ngp_client> ngp_server;
 
         template<typename layer_type>
-        void create_server(basic_service<> service, uint32_t port, std::function<void(layer_type)> successful_handler = 0, std::function<void()> failure_handler = 0)
+        void create_server(basic_service<> service, int32_t port, event<std::function<void(layer_type)>> successful_handler2 = null, event<std::function<void()>> failure_handler2 = null)
         {
+            auto successful_handler = successful_handler2; // bugfix(daemn) gah!!
+            auto failure_handler = failure_handler2; // bugfix(daemn) gah!!
+
             if(NEXTGEN_DEBUG_2)
                 std::cout << "[nextgen:network:server:accept] Waiting for client..." << std::endl;
 
@@ -3029,8 +3080,10 @@ std::cout << "size: " << self->content.size() << std::endl;
     }
 
     // todo(daemn) cant make this a template - ice segfault
-    void timeout(network::basic_service<> service, std::function<void()> callback, uint32_t milliseconds)
+    void timeout(network::basic_service<> service, event<std::function<void()>> callback2, uint32_t milliseconds)
     {
+        auto callback = callback2;
+
         if(milliseconds > 0)
         {
             if(NEXTGEN_DEBUG_2)

@@ -55,6 +55,7 @@
 #include <boost/any.hpp>
 #include <boost/function.hpp>
 #include <boost/random.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/tuple/tuple.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/type_traits.hpp>
@@ -72,6 +73,9 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/finder.hpp>
 #include <boost/date_time/gregorian/parsers.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 #include "content_gzip.h"
 #include "mysql/mysql.h"
@@ -119,17 +123,19 @@
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : ng_data(new data_type_arg(argument_list...)) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : ng_data(t.ng_data) { } \
     public: bool operator==(this_type_arg const& t) const { return &(*this->ng_data) == &(*t.ng_data); } \
-    public: bool operator==(nextgen::null_t& t) const { if(this->ng_data == 0) return 1; else return 0; } \
+    public: bool operator==(int t) const { if(t == 0) return this->ng_data == 0; else return 0; } \
+    public: bool operator==(nextgen::null_t& t) const { return this->ng_data == 0; } \
     public: bool operator!=(this_type_arg const& t) const { return !this->operator==(t); } \
+    public: bool operator!=(int t) const { return !this->operator==(t); } \
     public: bool operator!=(nextgen::null_t& t) const { return !this->operator==(t); } \
-    public: void operator=(nextgen::null_t& t) { this->ng_data.reset(); } \
-    public: boost::shared_ptr<data_type_arg> const& operator->() const { return this->ng_data; }
+    public: void operator=(int t) { if(t == 0) this->ng_data.reset(); } \
+    public: boost::shared_ptr<data_type_arg> const& operator->() const { if(this->ng_data == 0) std::cout << "undefined ng_data in " << typeid(*this).name() << std::endl; return this->ng_data; }
 
 #define NEXTGEN_ATTACH_SHARED_BASE(this_type_arg, base_type_arg, ...) \
     public: typedef this_type_arg ng_this_type; \
     public: this_type_arg(this_type_arg& t) : base_type_arg(*((base_type_arg*)(&t))) { } \
     public: this_type_arg(this_type_arg const& t) : base_type_arg(*((base_type_arg*)(&t))) { } \
-    public: this_type_arg(nextgen::null_t& t) : base_type_arg() { } \
+    public: this_type_arg(nextgen::null_t& t) : base_type_arg(t) { } \
     public: template<typename ...ng_argument_types> this_type_arg(ng_argument_types&& ...argument_list) : base_type_arg(argument_list...) { __VA_ARGS__ } \
     public: template<typename ng_argument_type> this_type_arg(ng_argument_type&& t, typename boost::enable_if<boost::is_base_of<this_type_arg, ng_argument_type>>::type* dummy = 0) : base_type_arg(*((base_type_arg*)(&t))) { }
 
@@ -144,7 +150,7 @@ namespace nextgen
     typedef boost::uint8_t byte;
 
     std::string const null_str = "null_t";
-    int const null_num = 0;
+    int32_t const null_num = -1;
 
     class null_t
     {
@@ -255,6 +261,15 @@ namespace nextgen
         }
     }
 
+    template<typename MapType>
+    void print_map(MapType& map)
+    {
+        for(auto i = map.begin(), l = map.end(); i != l; ++i)
+        {
+            std::cout << (*i).first << ": " << (*i).second << std::endl;
+        }
+    }
+
     int read_hex(const char* s)
     {
         int i;
@@ -306,7 +321,7 @@ namespace nextgen
             std::cout << "regex error: " << (e.code() == paren.code() ? "unbalanced parentheses" : "?") << std::endl;
         }
 
-        return 0;
+        return null_num;
     }
 
 
@@ -729,7 +744,7 @@ namespace nextgen
 	{
 	    public: typedef std::list<callback_type> callback_list_type;
 
-		public: template<typename ...element_type_list> void call(element_type_list&& ...element_list)
+		public: template<typename ...element_type_list> void call(element_type_list&& ...element_list) const
 		{
 		    auto self = *this;
 
@@ -742,21 +757,21 @@ namespace nextgen
 			}
 		}
 
-		public: void add(callback_type&& t)
+		public: void add(callback_type&& t) const
 		{
 		    auto self = *this;
 
 			self->list.push_back(t);
 		}
 
-		public: void remove(callback_type& t)
+		public: void remove(callback_type& t) const
 		{
 		    auto self = *this;
 
 			self->list.remove(t);
 		}
 
-		public: bool operator!()
+		public: bool operator!() const
 		{
 		    auto self = *this;
 
@@ -766,7 +781,7 @@ namespace nextgen
 				return false;
 		}
 
-		public: operator bool()
+		public: operator bool() const
 		{
 		    auto self = *this;
 
@@ -776,16 +791,16 @@ namespace nextgen
 				return false;
 		}
 
-		public: template<typename ...element_list_type> event<callback_type>& operator()(element_list_type&& ...element_list)
+		public: template<typename ...element_list_type> event<callback_type> operator()(element_list_type&& ...element_list) const
 		{
 		    auto self = *this;
 
 			self.call(element_list...);
 
-			return *this;
+			return self;
 		}
 
-		public: event<callback_type>& operator+(callback_type& t)
+		public: event<callback_type>& operator+(callback_type& t) const
 		{
 		    auto self = *this;
 
@@ -794,7 +809,7 @@ namespace nextgen
 			return *this;
 		}
 
-		public: event<callback_type>& operator-(callback_type& t)
+		public: event<callback_type>& operator-(callback_type& t) const
 		{
 		    auto self = *this;
 
@@ -803,28 +818,28 @@ namespace nextgen
 			return *this;
 		}
 
-		public: void operator+=(callback_type&& t)
+		public: void operator+=(callback_type&& t) const
 		{
 		    auto self = *this;
 
 			self.add(t);
 		}
 
-		public: template<typename element_type> void operator+=(element_type&& a)
+		public: template<typename element_type> void operator+=(element_type&& a) const
 		{
 		    auto self = *this;
 
 			self.add(callback_type(a));
 		}
 
-		public: void operator-=(callback_type& t)
+		public: void operator-=(callback_type& t) const
 		{
 		    auto self = *this;
 
 			self.remove(t);
 		}
 
-		public: template<typename element_type> void operator-=(element_type&& a)
+		public: template<typename element_type> void operator-=(element_type&& a) const
 		{
 		    auto self = *this;
 
@@ -838,6 +853,13 @@ namespace nextgen
 		    variables()
 		    {
 		         NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+		    }
+
+		    variables(callback_type t)
+		    {
+		         NEXTGEN_DEBUG_CONSTRUCTOR(*this);
+
+		         this->list.push_back(t);
 		    }
 
 		    ~variables()

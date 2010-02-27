@@ -59,6 +59,8 @@
 		<Unit filename="../../src/nextgen/content.h" />
 		<Unit filename="../../src/nextgen/content_gzip.h" />
 		<Unit filename="../../src/nextgen/database.h" />
+		<Unit filename="../../src/nextgen/engine.h" />
+		<Unit filename="../../src/nextgen/graphics.h" />
 		<Unit filename="../../src/nextgen/math.h" />
 		<Unit filename="../../src/nextgen/network.h" />
 		<Unit filename="../../src/nextgen/social.h" />
